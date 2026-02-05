@@ -222,6 +222,29 @@ class Database:
         cursor.execute("SELECT DISTINCT nom FROM categories ORDER BY ordre, nom")
         return [row['nom'] for row in cursor.fetchall()]
 
+    def get_subcategories_names(self, level: int = 1) -> List[str]:
+        """
+        Recupere les noms des sous-categories distinctes pour un niveau donne
+
+        Args:
+            level: Niveau de sous-categorie (1, 2 ou 3)
+
+        Returns:
+            Liste des sous-categories distinctes triees
+        """
+        cursor = self.conn.cursor()
+        if level == 1:
+            field = 'sous_categorie'
+        elif level == 2:
+            field = 'sous_categorie_2'
+        elif level == 3:
+            field = 'sous_categorie_3'
+        else:
+            return []
+
+        cursor.execute(f"SELECT DISTINCT {field} FROM produits WHERE {field} IS NOT NULL AND {field} != '' ORDER BY {field}")
+        return [row[field] for row in cursor.fetchall()]
+
     def add_categorie(self, nom: str, description: str = None, couleur: str = '#1F4E79'):
         """Ajoute une categorie"""
         cursor = self.conn.cursor()

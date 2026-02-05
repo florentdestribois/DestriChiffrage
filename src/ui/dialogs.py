@@ -70,9 +70,9 @@ class ProductDialog:
         self.entries = {}
         fields = [
             ('categorie', 'Categorie *', 'combobox'),
-            ('sous_categorie', 'Sous-categorie', 'entry'),
-            ('sous_categorie_2', 'Sous-categorie 2', 'entry'),
-            ('sous_categorie_3', 'Sous-categorie 3', 'entry'),
+            ('sous_categorie', 'Sous-categorie', 'combobox'),
+            ('sous_categorie_2', 'Sous-categorie 2', 'combobox'),
+            ('sous_categorie_3', 'Sous-categorie 3', 'combobox'),
             ('designation', 'Designation *', 'entry'),
             ('hauteur', 'Hauteur (mm)', 'entry'),
             ('largeur', 'Largeur (mm)', 'entry'),
@@ -91,7 +91,15 @@ class ProductDialog:
 
             if widget_type == 'combobox':
                 widget = ttk.Combobox(form_card, width=36, font=Theme.FONTS['body'])
-                widget['values'] = self.db.get_categories_names()
+                # Remplir avec les valeurs appropriees selon le champ
+                if field == 'categorie':
+                    widget['values'] = self.db.get_categories_names()
+                elif field == 'sous_categorie':
+                    widget['values'] = self.db.get_subcategories_names(level=1)
+                elif field == 'sous_categorie_2':
+                    widget['values'] = self.db.get_subcategories_names(level=2)
+                elif field == 'sous_categorie_3':
+                    widget['values'] = self.db.get_subcategories_names(level=3)
                 widget.set(self.data.get(field, ''))
                 widget.grid(row=i, column=1, sticky='w', padx=5, pady=8)
             elif widget_type == 'text':
