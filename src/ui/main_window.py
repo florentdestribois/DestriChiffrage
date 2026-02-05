@@ -600,8 +600,15 @@ class MainWindow:
         # Remplir
         for p in produits:
             prix_vente = p['prix_achat'] * (1 + marge / 100)
-            has_pdf = 'PDF' if p.get('fiche_technique') else ''  # Texte temporaire
-            has_devis = 'DEVIS' if p.get('devis_fournisseur') else ''  # Texte temporaire
+            # Determiner si PDF/Devis sont presents (tags seulement, pas de texte visible)
+            has_pdf = bool(p.get('fiche_technique'))
+            has_devis = bool(p.get('devis_fournisseur'))
+            tags = []
+            if has_pdf:
+                tags.append('has_pdf')
+            if has_devis:
+                tags.append('has_devis')
+
             self.tree.insert('', tk.END, values=(
                 p['id'],
                 p['categorie'],
@@ -612,9 +619,9 @@ class MainWindow:
                 f"{p['prix_achat']:.2f} EUR",
                 f"{prix_vente:.2f} EUR",
                 p['reference'] or '-',
-                has_pdf,
-                has_devis
-            ))
+                '',  # Colonne pdf : vide, icone affichee via overlay
+                ''   # Colonne devis : vide, icone affichee via overlay
+            ), tags=tuple(tags))
 
         # Mise a jour compteur
         count = len(produits)
@@ -978,8 +985,9 @@ Prix max: {stats['prix_max']:.2f} EUR
                     if bbox[0] < 0 or bbox[0] + bbox[2] > tree_width:
                         continue  # Cellule en dehors de la vue horizontale
 
-                    values = self.tree.item(item)['values']
-                    if len(values) > 9 and values[9] == 'PDF':  # A un PDF
+                    # Vérifier si l'item a le tag 'has_pdf'
+                    tags = self.tree.item(item)['tags']
+                    if 'has_pdf' in tags:  # A un PDF
                         # Créer un label avec l'icône
                         # bbox retourne (x, y, width, height) de la cellule
                         x = bbox[0] + (bbox[2] - 24) // 2  # Centrer horizontalement
@@ -1023,8 +1031,9 @@ Prix max: {stats['prix_max']:.2f} EUR
                     if bbox[0] < 0 or bbox[0] + bbox[2] > tree_width:
                         continue  # Cellule en dehors de la vue horizontale
 
-                    values = self.tree.item(item)['values']
-                    if len(values) > 10 and values[10] == 'DEVIS':  # A un devis
+                    # Vérifier si l'item a le tag 'has_devis'
+                    tags = self.tree.item(item)['tags']
+                    if 'has_devis' in tags:  # A un devis
                         # Créer un label avec l'icône
                         x = bbox[0] + (bbox[2] - 24) // 2  # Centrer horizontalement
                         y = bbox[1] + (bbox[3] - 24) // 2 + 1  # Centrer verticalement

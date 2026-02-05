@@ -546,16 +546,17 @@ class Database:
         """
         with open(filepath, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f, delimiter=delimiter)
-            # En-tetes
-            headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'DESIGNATION', 'HAUTEUR', 'LARGEUR',
-                      'PRIX_UNITAIRE_HT', 'ARTICLE', 'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE']
+            # En-tetes (meme format que l'export)
+            headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
+                      'DESIGNATION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
+                      'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
             writer.writerow(headers)
 
             # Exemple de lignes (chemins relatifs au dossier data)
             examples = [
-                ['STANDARD', 'Porte interieure', 'Porte pleine 83x204', '2040', '830', '125.50', 'REF001', 'Dispano', 'Projet A', 'Fiches techniques\\porte_standard.pdf'],
-                ['COUPE-FEU', 'EI30', 'Bloc-porte CF 1/2h', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Projet B', 'Fiches techniques\\Portes et chassis\\EI30\\fiche.pdf'],
-                ['ACOUSTIQUE', 'RA 35dB', 'Porte acoustique isolee', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Projet C', ''],
+                ['STANDARD', 'Porte interieure', '', '', 'Porte pleine 83x204', '2040', '830', '125.50', 'REF001', 'Dispano', 'Projet A', 'Fiches_techniques\\porte_standard.pdf', 'Devis_fournisseur\\devis_001.pdf'],
+                ['COUPE-FEU', 'EI30', 'Bloc-porte', '', 'Bloc-porte CF 1/2h', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Projet B', 'Fiches_techniques\\Portes_et_chassis\\EI30\\fiche.pdf', ''],
+                ['ACOUSTIQUE', 'RA 35dB', '', '', 'Porte acoustique isolee', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Projet C', '', 'Devis_fournisseur\\devis_002.pdf'],
             ]
             for example in examples:
                 writer.writerow(example)
@@ -685,10 +686,12 @@ class Database:
             marge = self.get_marge()
 
         with open(filepath, 'w', encoding='utf-8', newline='') as f:
-            headers = ['CATEGORIE', 'SOUS_CATEGORIE', 'SOUS_CATEGORIE_2', 'SOUS_CATEGORIE_3', 'DESIGNATION', 'HAUTEUR', 'LARGEUR',
-                      'PRIX_ACHAT_HT', 'REFERENCE', 'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE']
+            # En-tetes compatibles avec import (memes noms que dans le mapping)
+            headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
+                      'DESIGNATION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
+                      'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
             if include_prix_vente:
-                headers.insert(6, 'PRIX_VENTE_HT')
+                headers.insert(8, 'PRIX_VENTE_HT')
 
             writer = csv.writer(f, delimiter=delimiter)
             writer.writerow(headers)
@@ -704,10 +707,16 @@ class Database:
                     p['hauteur'] or '',
                     p['largeur'] or '',
                     f"{p['prix_achat']:.2f}",
+                    p['reference'] or '',
                 ]
                 if include_prix_vente:
                     row.append(f"{prix_vente:.2f}")
-                row.extend([p['reference'], p['fournisseur'] or '', p['chantier'] or '', p.get('fiche_technique') or ''])
+                row.extend([
+                    p['fournisseur'] or '',
+                    p['chantier'] or '',
+                    p.get('fiche_technique', '') or '',
+                    p.get('devis_fournisseur', '') or ''
+                ])
                 writer.writerow(row)
 
         return len(produits)
