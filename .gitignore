@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Base de données
+*.db
+*.sqlite
+*.sqlite3
+
+# Fichiers de configuration locaux
+*.local
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.pyproj.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Screenshots et captures
+Capture*.png
+*.jpg
+*.jpeg

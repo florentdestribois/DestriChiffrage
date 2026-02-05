@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(taskkill:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cd:*)",
+      "Bash(sqlite3:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(pip install:*)",
+      "Bash(start \"\" \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\data\\\\Devis_fournisseur\\\\Dispano\\\\M3248000120388.PDF\")",
+      "Bash(start \"\" \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\data\\\\Devis_fournisseur\\\\Dispano\\\\M3248000121110.PDF\")",
+      "Bash(tesseract:*)",
+      "Bash(if [ -f \"C:\\\\Users\\\\tt\\\\AppData\\\\Local\\\\Temp\\\\poppler.zip\" ])",
+      "Bash(else echo \"Not downloaded yet\")",
+      "Bash(fi)",
+      "Bash(tee:*)",
+      "Bash(del:*)",
+      "Bash(git init:*)",
+      "Bash(git config:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

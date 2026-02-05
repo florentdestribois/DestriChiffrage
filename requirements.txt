@@ -1,0 +1,17 @@
+# DestriChiffrage - Dependencies
+# ==============================
+
+# Interface graphique (inclus dans Python standard)
+# tkinter
+
+# Base de donnees (inclus dans Python standard)
+# sqlite3
+
+# Optionnel - pour creer un executable
+pyinstaller>=5.0
+
+# Optionnel - pour les tests
+pytest>=7.0
+
+# Optionnel - pour l'export Excel
+openpyxl>=3.0
