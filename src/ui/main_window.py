@@ -11,12 +11,20 @@ import sys
 import subprocess
 from datetime import datetime
 
-# Pour le logo
+# Pour le logo et icones
 try:
     from PIL import Image, ImageTk
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
+# Gestionnaire de panier
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from cart_manager import CartManager
+from ui.cart_panel import CartPanel
+from ui.cart_export_dialog import CartExportDialog
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import Database
@@ -39,13 +47,19 @@ class MainWindow:
         self.largeur_var = tk.StringVar(value="Toutes")
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
 
-        # Charger les icones PDF et Devis
+        # Charger les icones PDF, Devis et Panier
         self.pdf_icon = None
         self.devis_icon = None
+        self.cart_icon = None
         self.pdf_labels = []  # Labels pour afficher les icônes PDF
         self.devis_labels = []  # Labels pour afficher les icônes Devis
+        self.cart_labels = []  # Labels pour afficher les icônes Panier
         self._load_pdf_icon()
         self._load_devis_icon()
+        self._load_cart_icon()
+
+        # Gestionnaire de panier
+        self.cart_manager = CartManager.get_instance()
 
         # Construction de l'interface
         self._create_menu()
@@ -85,6 +99,12 @@ class MainWindow:
                     self.devis_icon = ImageTk.PhotoImage(img)
             except Exception as e:
                 print(f"Erreur chargement icone Devis: {e}")
+
+    def _load_cart_icon(self):
+        """Charge l'icone Panier (utilise emoji Unicode)"""
+        # Pour l'instant, on n'utilisera pas d'image mais un label texte
+        # avec l'emoji panier Unicode
+        pass
 
     def _create_menu(self):
         """Cree la barre de menu"""
@@ -352,7 +372,7 @@ class MainWindow:
 
         # Colonnes du tableau
         columns = ('id', 'categorie', 'sous_categorie', 'designation',
-                  'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference', 'pdf', 'devis')
+                  'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference', 'pdf', 'devis', 'cart')
 
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings',
                                 selectmode='browse')
@@ -370,6 +390,7 @@ class MainWindow:
             'reference': ('Ref.', 80, 'center'),
             'pdf': ('Fiche', 60, 'center'),
             'devis': ('Devis', 60, 'center'),
+            'cart': ('Panier', 60, 'center'),
         }
 
         for col, (text, width, anchor) in col_config.items():
@@ -401,6 +422,11 @@ class MainWindow:
         self.tree.bind('<Double-1>', self._on_tree_double_click)
         self.tree.bind('<Button-1>', self._on_tree_click)
         self.tree.bind('<Return>', lambda e: self.on_edit())
+        self.tree.bind('<Button-3>', self._show_context_menu)  # Clic droit
+        self.tree.bind('<Control-c>', self._copy_row)  # Ctrl+C
+
+        # Menu contextuel
+        self._create_context_menu()
 
         # Barre d'actions en bas
         action_bar = tk.Frame(main_container, bg=Theme.COLORS['bg'], height=56)
@@ -445,6 +471,16 @@ class MainWindow:
         right_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
         right_btns.pack(side=tk.RIGHT)
 
+        # Bouton Panier
+        self.cart_btn = tk.Button(right_btns, text="\U0001F6D2 Panier (0)",  # 🛒
+                                  font=Theme.FONTS['body_bold'],
+                                  bg=Theme.COLORS['secondary'],
+                                  fg=Theme.COLORS['white'],
+                                  activebackground=Theme.COLORS['accent_light'],
+                                  bd=0, padx=16, pady=10, cursor='hand2',
+                                  command=self._show_cart_panel)
+        self.cart_btn.pack(side=tk.LEFT, padx=(0, 8))
+
         # Bouton Categories
         cat_btn = tk.Button(right_btns, text="Categories",
                            font=Theme.FONTS['body'],
@@ -464,16 +500,6 @@ class MainWindow:
                               bd=0, padx=16, pady=10, cursor='hand2',
                               command=self.on_import)
         import_btn.pack(side=tk.LEFT, padx=(0, 8))
-
-        # Bouton Exporter
-        export_btn = tk.Button(right_btns, text="Exporter",
-                              font=Theme.FONTS['body_bold'],
-                              bg=Theme.COLORS['secondary'],
-                              fg=Theme.COLORS['white'],
-                              activebackground=Theme.COLORS['secondary_light'],
-                              bd=0, padx=16, pady=10, cursor='hand2',
-                              command=self.on_export_selection)
-        export_btn.pack(side=tk.LEFT)
 
     def _create_status_bar(self):
         """Cree la barre de statut minimaliste"""
@@ -600,14 +626,17 @@ class MainWindow:
         # Remplir
         for p in produits:
             prix_vente = p['prix_achat'] * (1 + marge / 100)
-            # Determiner si PDF/Devis sont presents (tags seulement, pas de texte visible)
+            # Determiner si PDF/Devis/Panier sont presents (tags seulement, pas de texte visible)
             has_pdf = bool(p.get('fiche_technique'))
             has_devis = bool(p.get('devis_fournisseur'))
+            in_cart = self.cart_manager.is_in_cart(p['id'])
             tags = []
             if has_pdf:
                 tags.append('has_pdf')
             if has_devis:
                 tags.append('has_devis')
+            if in_cart:
+                tags.append('in_cart')
 
             self.tree.insert('', tk.END, values=(
                 p['id'],
@@ -620,15 +649,19 @@ class MainWindow:
                 f"{prix_vente:.2f} EUR",
                 p['reference'] or '-',
                 '',  # Colonne pdf : vide, icone affichee via overlay
-                ''   # Colonne devis : vide, icone affichee via overlay
+                '',  # Colonne devis : vide, icone affichee via overlay
+                ''   # Colonne cart : vide, icone affichee via overlay
             ), tags=tuple(tags))
 
         # Mise a jour compteur
         count = len(produits)
         self.count_label.config(text=f"{count} produit{'s' if count != 1 else ''}")
 
+        # Forcer la mise à jour du Treeview
+        self.tree.update_idletasks()
+
         # Mettre à jour les icônes après un court délai
-        self.root.after(150, self._update_all_icons)
+        self.root.after(300, self._update_all_icons)
 
     def clear_search(self):
         """Efface la recherche"""
@@ -764,34 +797,6 @@ class MainWindow:
             except Exception as e:
                 messagebox.showerror("Erreur", f"Erreur d'export:\n{e}")
 
-    def on_export_selection(self):
-        """Exporte la selection actuelle"""
-        terme = self.search_var.get()
-        categorie = self.category_var.get()
-        produits = self.db.search_produits(terme, categorie)
-
-        subcategorie = self.subcategory_var.get()
-        if subcategorie and subcategorie != "Toutes":
-            produits = [p for p in produits if p['sous_categorie'] == subcategorie]
-
-        if not produits:
-            messagebox.showwarning("Attention", "Aucun produit a exporter")
-            return
-
-        filepath = filedialog.asksaveasfilename(
-            title="Exporter la selection",
-            defaultextension=".csv",
-            filetypes=[("Fichiers CSV", "*.csv")],
-            initialfilename=f"selection_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
-        )
-        if filepath:
-            try:
-                marge = float(self.marge_var.get().replace(',', '.').replace('%', '').strip() or '20')
-                count = self.db.export_csv(filepath, produits, marge)
-                messagebox.showinfo("Export termine", f"{count} produit(s) exporte(s)")
-            except Exception as e:
-                messagebox.showerror("Erreur", f"Erreur d'export:\n{e}")
-
     def on_settings(self):
         """Ouvre les parametres"""
         dialog = SettingsDialog(self.root, self.db)
@@ -886,33 +891,192 @@ Prix max: {stats['prix_max']:.2f} EUR
 
     def on_clear_database(self):
         """Vide la base de donnees (tous les produits)"""
-        # Double confirmation
-        response = messagebox.askyesno(
-            "Vider la base de donnees",
-            "ATTENTION: Cette action va supprimer TOUS les produits du catalogue.\n\n"
-            "Cette action est IRREVERSIBLE.\n\n"
-            "Voulez-vous vraiment continuer?"
-        )
+        # Dialogue personnalise avec case a cocher pour les categories
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Vider la base de donnees")
+        dialog.geometry("450x280")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(False, False)
 
-        if not response:
+        # Centrer le dialogue
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+
+        # Variable pour la case a cocher
+        clear_categories_var = tk.BooleanVar(value=False)
+        result = {'confirmed': False, 'clear_categories': False}
+
+        # Frame principal
+        main_frame = tk.Frame(dialog, bg=Theme.COLORS['bg'], padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Icone et titre
+        title_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
+        title_frame.pack(fill=tk.X, pady=(0, 15))
+
+        tk.Label(title_frame, text="⚠️ ATTENTION", font=Theme.FONTS['title'],
+                bg=Theme.COLORS['bg'], fg=Theme.COLORS['danger']).pack()
+
+        # Message
+        message = ("Cette action va supprimer TOUS les produits du catalogue.\n\n"
+                  "Cette action est IRREVERSIBLE.\n\n"
+                  "Voulez-vous continuer?")
+        tk.Label(main_frame, text=message, font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                justify=tk.LEFT, wraplength=400).pack(pady=(0, 15))
+
+        # Case a cocher pour les categories
+        check_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=10, pady=10,
+                              highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        check_frame.pack(fill=tk.X, pady=(0, 20))
+
+        tk.Checkbutton(check_frame, text="Supprimer aussi toutes les categories",
+                      variable=clear_categories_var, font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
+                      cursor='hand2').pack(anchor='w')
+
+        # Boutons
+        btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
+        btn_frame.pack(fill=tk.X)
+
+        def on_cancel():
+            result['confirmed'] = False
+            dialog.destroy()
+
+        def on_confirm():
+            result['confirmed'] = True
+            result['clear_categories'] = clear_categories_var.get()
+            dialog.destroy()
+
+        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
+                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
+                 bd=0, padx=20, pady=8, cursor='hand2',
+                 command=on_cancel).pack(side=tk.LEFT, padx=(0, 10))
+
+        tk.Button(btn_frame, text="Continuer", font=Theme.FONTS['body_bold'],
+                 bg=Theme.COLORS['danger'], fg=Theme.COLORS['white'],
+                 bd=0, padx=20, pady=8, cursor='hand2',
+                 command=on_confirm).pack(side=tk.LEFT)
+
+        # Attendre la fermeture du dialogue
+        self.root.wait_window(dialog)
+
+        if not result['confirmed']:
             return
 
         # Seconde confirmation
-        confirm = messagebox.askyesno(
-            "Confirmation DEFINITIVE",
-            "Derniere chance!\n\n"
-            "Tous les produits vont etre supprimes definitivement.\n\n"
-            "Confirmer la suppression?"
-        )
+        confirm_msg = "Derniere chance!\n\nTous les produits vont etre supprimes definitivement."
+        if result['clear_categories']:
+            confirm_msg += "\n\nToutes les categories seront aussi supprimees."
+        confirm_msg += "\n\nConfirmer la suppression?"
+
+        confirm = messagebox.askyesno("Confirmation DEFINITIVE", confirm_msg)
 
         if not confirm:
             return
 
-        # Supprimer tous les produits
-        self.db.clear_all_produits()
+        # Supprimer tous les produits (et categories si demande)
+        self.db.clear_all_produits(clear_categories=result['clear_categories'])
         self.refresh_data()
-        self.set_status("Base de donnees videe")
-        messagebox.showinfo("Termine", "Tous les produits ont ete supprimes.")
+
+        if result['clear_categories']:
+            self.set_status("Base de donnees et categories videes")
+            messagebox.showinfo("Termine", "Tous les produits et categories ont ete supprimes.")
+        else:
+            self.set_status("Base de donnees videe")
+            messagebox.showinfo("Termine", "Tous les produits ont ete supprimes.")
+
+    # ==================== COPIER-COLLER ====================
+
+    def _create_context_menu(self):
+        """Cree le menu contextuel pour le tableau"""
+        self.context_menu = tk.Menu(self.root, tearoff=0,
+                                    bg=Theme.COLORS['bg_alt'],
+                                    fg=Theme.COLORS['text'],
+                                    activebackground=Theme.COLORS['primary'],
+                                    activeforeground=Theme.COLORS['white'],
+                                    bd=1, relief='solid')
+
+        self.context_menu.add_command(label="Copier la designation", command=self._copy_designation)
+        self.context_menu.add_command(label="Copier le prix achat", command=self._copy_prix_achat)
+        self.context_menu.add_command(label="Copier le prix vente", command=self._copy_prix_vente)
+        self.context_menu.add_command(label="Copier la reference", command=self._copy_reference)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Copier toute la ligne", command=lambda: self._copy_row(None))
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Modifier", command=self.on_edit)
+        self.context_menu.add_command(label="Supprimer", command=self.on_delete)
+
+    def _show_context_menu(self, event):
+        """Affiche le menu contextuel"""
+        # Selectionner l'item sous le curseur
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.tree.selection_set(item)
+            try:
+                self.context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                self.context_menu.grab_release()
+
+    def _copy_to_clipboard(self, text):
+        """Copie du texte dans le presse-papiers"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
+        self.set_status(f"Copie: {text[:50]}..." if len(text) > 50 else f"Copie: {text}")
+
+    def _copy_designation(self):
+        """Copie la designation du produit selectionne"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        values = self.tree.item(selection[0])['values']
+        if len(values) > 3:
+            self._copy_to_clipboard(str(values[3]))  # designation
+
+    def _copy_prix_achat(self):
+        """Copie le prix achat du produit selectionne"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        values = self.tree.item(selection[0])['values']
+        if len(values) > 6:
+            prix = str(values[6]).replace(' EUR', '').replace(',', '.')
+            self._copy_to_clipboard(prix)
+
+    def _copy_prix_vente(self):
+        """Copie le prix vente du produit selectionne"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        values = self.tree.item(selection[0])['values']
+        if len(values) > 7:
+            prix = str(values[7]).replace(' EUR', '').replace(',', '.')
+            self._copy_to_clipboard(prix)
+
+    def _copy_reference(self):
+        """Copie la reference du produit selectionne"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        values = self.tree.item(selection[0])['values']
+        if len(values) > 8:
+            self._copy_to_clipboard(str(values[8]))  # reference
+
+    def _copy_row(self, event):
+        """Copie toute la ligne au format tabule (pour Excel)"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        values = self.tree.item(selection[0])['values']
+        # Exclure les colonnes pdf et devis (vides) - indices 9 et 10
+        row_data = [str(v) for v in values[:9]]
+        row_text = '\t'.join(row_data)
+        self._copy_to_clipboard(row_text)
 
     def _on_vsb_scroll(self, *args):
         """Callback pour le scroll vertical"""
@@ -935,7 +1099,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         self._update_all_icons()
 
     def _clear_pdf_icons(self):
-        """Nettoie toutes les icônes affichées (PDF et Devis)"""
+        """Nettoie toutes les icônes affichées (PDF, Devis et Panier)"""
         for label in self.pdf_labels:
             try:
                 label.place_forget()
@@ -952,18 +1116,27 @@ Prix max: {stats['prix_max']:.2f} EUR
                 pass
         self.devis_labels.clear()
 
+        for label in self.cart_labels:
+            try:
+                label.place_forget()
+                label.destroy()
+            except:
+                pass
+        self.cart_labels.clear()
+
     def _update_all_icons(self):
-        """Met à jour toutes les icônes (PDF et Devis)"""
+        """Met à jour toutes les icônes (PDF, Devis et Panier)"""
+        # Nettoyer toutes les icônes une seule fois au début
+        self._clear_pdf_icons()
+        # Recréer toutes les icônes
         self._update_pdf_icons()
         self._update_devis_icons()
+        self._update_cart_icons()
 
     def _update_pdf_icons(self):
         """Met à jour les positions des icônes PDF avec des Labels overlay"""
         if not self.pdf_icon:
             return
-
-        # Nettoyer les anciennes icônes
-        self._clear_pdf_icons()
 
         # Obtenir les limites du Treeview
         try:
@@ -1093,6 +1266,96 @@ Prix max: {stats['prix_max']:.2f} EUR
             self.set_status(f"Ouverture: {os.path.basename(filepath)}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Impossible d'ouvrir le fichier:\n{e}")
+
+    # ==================== GESTION DU PANIER ====================
+
+    def _update_cart_icons(self):
+        """Met a jour les positions des icones Panier avec des Labels overlay"""
+        try:
+            tree_height = self.tree.winfo_height()
+            tree_width = self.tree.winfo_width()
+        except:
+            return
+
+        try:
+            for item in self.tree.get_children():
+                bbox = self.tree.bbox(item, 'cart')
+                if bbox:
+                    if bbox[1] < 0 or bbox[1] + bbox[3] > tree_height:
+                        continue
+                    if bbox[0] < 0 or bbox[0] + bbox[2] > tree_width:
+                        continue
+
+                    values = self.tree.item(item)['values']
+                    product_id = values[0]
+                    in_cart = self.cart_manager.is_in_cart(product_id)
+
+                    x = bbox[0] + (bbox[2] - 24) // 2
+                    y = bbox[1] + (bbox[3] - 24) // 2 + 1
+
+                    emoji = "\u2713" if in_cart else "+"  # ✓ ou +
+                    color = Theme.COLORS['success'] if in_cart else Theme.COLORS['secondary']
+
+                    label = tk.Label(self.tree.master, text=emoji,
+                                    font=('Segoe UI', 12, 'bold'),
+                                    bg='white', fg=color,
+                                    cursor='hand2', bd=0, relief='flat')
+                    label.place(x=x, y=y, width=24, height=24)
+
+                    label.bind('<Button-1>', lambda e, i=item: self._on_cart_icon_click(i))
+
+                    self.cart_labels.append(label)
+
+        except Exception as e:
+            pass
+
+    def _on_cart_icon_click(self, item):
+        """Gere le clic sur une icone Panier"""
+        values = self.tree.item(item)['values']
+        product_id = values[0]
+
+        produits = self.db.search_produits()
+        product = next((p for p in produits if p['id'] == product_id), None)
+
+        if not product:
+            return
+
+        if self.cart_manager.is_in_cart(product_id):
+            self.cart_manager.remove_from_cart(product_id)
+            self.set_status(f"Article retire du panier: {product['designation']}")
+        else:
+            self.cart_manager.add_to_cart(product)
+            self.set_status(f"Article ajoute au panier: {product['designation']}")
+
+        self._update_cart_button()
+        self._update_all_icons()
+
+    def _update_cart_button(self):
+        """Met a jour le compteur du bouton panier"""
+        count = self.cart_manager.get_cart_count()
+        self.cart_btn.config(text=f"\U0001F6D2 Panier ({count})")
+
+    def _show_cart_panel(self):
+        """Affiche le panneau du panier"""
+        CartPanel(self.root, self.cart_manager, self.db,
+                 on_export_callback=self._on_export_cart)
+
+    def _on_export_cart(self):
+        """Lance l'export du panier"""
+        dialog = CartExportDialog(self.root, self.cart_manager, self.db)
+        self.root.wait_window(dialog)
+
+        if dialog.result:
+            response = messagebox.askyesno(
+                "Vider le panier",
+                "Export termine avec succes!\n\nVoulez-vous vider le panier?"
+            )
+            if response:
+                self.cart_manager.clear_cart()
+                self._update_cart_button()
+                self.on_search()
+
+    # ==================== FERMETURE ====================
 
     def on_closing(self):
         """Ferme l'application"""

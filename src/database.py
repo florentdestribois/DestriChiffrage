@@ -46,6 +46,9 @@ class Database:
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
+        # Assurer l'encodage UTF-8
+        self.conn.execute("PRAGMA encoding = 'UTF-8'")
+        self.conn.text_factory = str  # Forcer les textes en str (unicode en Python 3)
         self._create_tables()
 
     def _create_tables(self):
@@ -550,11 +553,18 @@ class Database:
             cursor.execute("SELECT COUNT(*) as cnt FROM produits WHERE actif=1")
         return cursor.fetchone()['cnt']
 
-    def clear_all_produits(self):
-        """Supprime TOUS les produits de la base de donnees"""
+    def clear_all_produits(self, clear_categories: bool = False):
+        """
+        Supprime TOUS les produits de la base de donnees
+
+        Args:
+            clear_categories: Si True, supprime aussi toutes les categories
+        """
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM produits")
         cursor.execute("DELETE FROM historique_prix")
+        if clear_categories:
+            cursor.execute("DELETE FROM categories")
         self.conn.commit()
 
     # ==================== IMPORT / EXPORT ====================
@@ -567,7 +577,7 @@ class Database:
             filepath: Chemin du fichier de sortie
             delimiter: Delimiteur CSV
         """
-        with open(filepath, 'w', encoding='utf-8', newline='') as f:
+        with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.writer(f, delimiter=delimiter)
             # En-tetes (meme format que l'export)
             headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
@@ -614,12 +624,13 @@ class Database:
             }
 
         count = 0
-        # Essayer d'ouvrir avec utf-8, sinon cp1252
-        encoding = 'utf-8'
+        # Detecter l'encodage : utf-8-sig (avec BOM), utf-8, ou cp1252
+        encoding = 'utf-8-sig'  # Detecte et supprime le BOM UTF-8 automatiquement
         try:
-            with open(filepath, 'r', encoding='utf-8') as test_f:
+            with open(filepath, 'r', encoding='utf-8-sig') as test_f:
                 test_f.read(2048)  # Tester la lecture
         except UnicodeDecodeError:
+            # Fallback vers cp1252 si erreur
             encoding = 'cp1252'
 
         with open(filepath, 'r', encoding=encoding) as f:
@@ -708,7 +719,7 @@ class Database:
         if marge is None:
             marge = self.get_marge()
 
-        with open(filepath, 'w', encoding='utf-8', newline='') as f:
+        with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
             # En-tetes compatibles avec import (memes noms que dans le mapping)
             headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
                       'DESIGNATION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
@@ -743,6 +754,139 @@ class Database:
                 writer.writerow(row)
 
         return len(produits)
+
+    # ==================== PANIER / EXPORT GROUPE ====================
+
+    def get_produits_by_ids(self, product_ids: List[int]) -> List[Dict]:
+        """
+        Recupere des produits par leurs IDs
+
+        Args:
+            product_ids: Liste des IDs de produits
+
+        Returns:
+            Liste des produits avec toutes leurs donnees
+        """
+        if not product_ids:
+            return []
+
+        cursor = self.conn.cursor()
+        placeholders = ','.join('?' * len(product_ids))
+        query = f"SELECT * FROM produits WHERE id IN ({placeholders}) AND actif=1"
+        cursor.execute(query, product_ids)
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    def export_cart_to_csv(self, product_ids: List[int], filepath: str,
+                          export_dir: str = None, include_fiches: bool = False,
+                          include_devis: bool = False, marge: float = None) -> Dict:
+        """
+        Exporte les produits du panier avec options de copie des PDFs
+
+        Args:
+            product_ids: Liste des IDs des produits a exporter
+            filepath: Chemin du fichier CSV de destination
+            export_dir: Dossier de destination pour les PDFs (optionnel)
+            include_fiches: Copier les fiches techniques
+            include_devis: Copier les devis fournisseur
+            marge: Marge a appliquer (ou marge par defaut si None)
+
+        Returns:
+            Dictionnaire avec statistiques:
+            {'nb_articles': int, 'nb_fiches': int, 'nb_devis': int}
+        """
+        import os
+        import shutil
+
+        # Recuperer les produits
+        produits = self.get_produits_by_ids(product_ids)
+
+        if not produits:
+            return {'nb_articles': 0, 'nb_fiches': 0, 'nb_devis': 0}
+
+        # Exporter le CSV
+        nb_articles = self.export_csv(filepath, produits, marge, include_prix_vente=True)
+
+        # Copier les PDFs si demande
+        nb_fiches = 0
+        nb_devis = 0
+
+        if export_dir and (include_fiches or include_devis):
+            nb_fiches, nb_devis = self._copy_pdf_files(
+                produits, export_dir, include_fiches, include_devis
+            )
+
+        return {
+            'nb_articles': nb_articles,
+            'nb_fiches': nb_fiches,
+            'nb_devis': nb_devis
+        }
+
+    def _copy_pdf_files(self, produits: List[Dict], export_dir: str,
+                       include_fiches: bool, include_devis: bool) -> tuple:
+        """
+        Copie les fichiers PDF des produits dans un dossier d'export
+
+        Args:
+            produits: Liste des produits
+            export_dir: Dossier de destination
+            include_fiches: Copier les fiches techniques
+            include_devis: Copier les devis fournisseur
+
+        Returns:
+            Tuple (nb_fiches_copiees, nb_devis_copies)
+        """
+        import os
+        import shutil
+
+        fiches_copied = 0
+        devis_copied = 0
+
+        # Creer les sous-dossiers
+        if include_fiches:
+            fiches_dir = os.path.join(export_dir, "Fiches_techniques")
+            os.makedirs(fiches_dir, exist_ok=True)
+
+        if include_devis:
+            devis_dir = os.path.join(export_dir, "Devis_fournisseur")
+            os.makedirs(devis_dir, exist_ok=True)
+
+        # Copier les fichiers
+        for product in produits:
+            product_id = product['id']
+            designation = product['designation']
+
+            # Nettoyer la designation pour le nom de fichier
+            safe_designation = "".join(c for c in designation if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_designation = safe_designation[:50]  # Limiter la longueur
+
+            # Copier la fiche technique
+            if include_fiches and product.get('fiche_technique'):
+                src_path = self.resolve_fiche_path(product['fiche_technique'])
+                if src_path and os.path.exists(src_path):
+                    try:
+                        ext = os.path.splitext(src_path)[1]
+                        dst_name = f"{product_id}_{safe_designation}_fiche{ext}"
+                        dst_path = os.path.join(fiches_dir, dst_name)
+                        shutil.copy2(src_path, dst_path)
+                        fiches_copied += 1
+                    except Exception as e:
+                        print(f"Erreur copie fiche {product_id}: {e}")
+
+            # Copier le devis fournisseur
+            if include_devis and product.get('devis_fournisseur'):
+                src_path = self.resolve_fiche_path(product['devis_fournisseur'])
+                if src_path and os.path.exists(src_path):
+                    try:
+                        ext = os.path.splitext(src_path)[1]
+                        dst_name = f"{product_id}_{safe_designation}_devis{ext}"
+                        dst_path = os.path.join(devis_dir, dst_name)
+                        shutil.copy2(src_path, dst_path)
+                        devis_copied += 1
+                    except Exception as e:
+                        print(f"Erreur copie devis {product_id}: {e}")
+
+        return (fiches_copied, devis_copied)
 
     # ==================== STATISTIQUES ====================
 

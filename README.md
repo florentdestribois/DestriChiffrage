@@ -5,10 +5,13 @@ Application de gestion de catalogue et de chiffrage de portes.
 ## Fonctionnalites
 
 - **Recherche instantanee** : Recherche par mot-cle dans les designations, dimensions, references
-- **Filtrage par categorie** : COUPE-FEU, ACOUSTIQUE, VITREE, STANDARD, MATERNELLE, ACCESSOIRE
+- **Filtrage avance** : Par categorie, sous-categorie (3 niveaux), hauteur et largeur
 - **Calcul automatique des prix de vente** : Marge personnalisable (defaut 20%)
-- **Gestion des produits** : Ajout, modification, suppression
-- **Import/Export CSV** : Compatible avec Excel
+- **Gestion des produits** : Ajout, modification, suppression avec formulaires intuitifs
+- **Panier d'export** 🛒 : Selection multiple d'articles pour export groupe avec PDFs
+- **Import/Export CSV** : Compatible avec Excel, encodage UTF-8 avec BOM
+- **Gestion des documents** : Association de fiches techniques et devis fournisseur (PDF)
+- **Copier-coller** : Copie rapide des designations, prix et references
 - **Base de donnees locale** : SQLite (pas de serveur requis)
 
 ## Structure du projet
@@ -16,21 +19,28 @@ Application de gestion de catalogue et de chiffrage de portes.
 ```
 DestriChiffrage/
 ├── src/
-│   ├── main.py              # Point d'entree
-│   ├── database.py          # Gestion base de donnees
+│   ├── main.py                # Point d'entree
+│   ├── database.py            # Gestion base de donnees & exports
+│   ├── cart_manager.py        # Gestionnaire de panier
+│   ├── config.py              # Configuration
 │   └── ui/
 │       ├── __init__.py
-│       ├── theme.py         # Styles et couleurs
-│       ├── main_window.py   # Fenetre principale
-│       └── dialogs.py       # Boites de dialogue
+│       ├── theme.py           # Styles et couleurs
+│       ├── main_window.py     # Fenetre principale
+│       ├── dialogs.py         # Boites de dialogue
+│       ├── cart_panel.py      # Interface panier
+│       └── cart_export_dialog.py  # Dialogue d'export panier
 ├── data/
-│   └── catalogue.db         # Base de donnees (creee automatiquement)
+│   ├── catalogue.db           # Base de donnees (creee automatiquement)
+│   ├── Fiches_techniques/     # PDFs fiches techniques
+│   └── Devis_fournisseur/     # PDFs devis
 ├── assets/
-│   └── icon.ico             # Icone (optionnel)
-├── tests/
+│   ├── icon.ico               # Icone application
+│   ├── logo.png               # Logo (optionnel)
+│   └── pdf.png                # Icone PDF
 ├── requirements.txt
 ├── README.md
-└── run.bat                  # Lanceur Windows
+└── run.bat                    # Lanceur Windows
 ```
 
 ## Installation
@@ -71,8 +81,28 @@ python src/main.py
 2. Cliquer sur "Appliquer"
 3. Tous les prix de vente sont recalcules
 
-### Exporter
-- **Exporter tout** : Exporte tous les produits
+### Utiliser le panier d'export 🛒
+1. Cliquer sur l'icone "+" dans la colonne Panier pour ajouter un article
+2. L'icone devient "✓" et le compteur du bouton Panier s'incremente
+3. Cliquer sur le bouton "🛒 Panier (X)" pour voir les articles selectionnes
+4. Dans le panneau panier :
+   - Double-clic sur un article pour le retirer
+   - "Vider le panier" pour tout supprimer
+   - "Exporter" pour lancer l'export groupe
+
+### Exporter le panier
+1. Depuis le panneau panier, cliquer sur "Exporter"
+2. Choisir le fichier CSV de destination
+3. Choisir le dossier pour les PDFs (optionnel)
+4. Cocher les options :
+   - ☑ Inclure les fiches techniques
+   - ☑ Inclure les devis fournisseur
+5. Les fichiers PDF seront copies dans des sous-dossiers :
+   - `Fiches_techniques/`
+   - `Devis_fournisseur/`
+
+### Exporter tout / selection
+- **Exporter tout** : Exporte tous les produits du catalogue
 - **Exporter selection** : Exporte uniquement les produits affiches (apres filtre/recherche)
 
 ## Creation d'un executable
