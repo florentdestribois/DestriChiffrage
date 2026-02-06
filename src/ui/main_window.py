@@ -145,6 +145,8 @@ class MainWindow:
         # Menu Aide
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Aide", menu=help_menu)
+        help_menu.add_command(label="Verifier les mises a jour...", command=self.on_check_updates)
+        help_menu.add_separator()
         help_menu.add_command(label="A propos", command=self.on_about)
 
         # Raccourcis clavier
@@ -885,6 +887,59 @@ Prix max: {stats['prix_max']:.2f} EUR
             self.set_status(f"Ouverture: {os.path.basename(filepath)}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Impossible d'ouvrir le fichier:\n{e}")
+
+    def on_check_updates(self):
+        """Verifie les mises a jour disponibles"""
+        import threading
+
+        def check_in_thread():
+            """Verifie les mises a jour dans un thread"""
+            try:
+                from ui.update_dialog import UpdateDialog, show_no_update_dialog, show_check_error_dialog
+                from updater import Updater
+
+                updater = Updater()
+                update_info = updater.check_for_updates()
+
+                # Afficher le resultat dans le thread principal
+                self.root.after(0, lambda: self._show_update_result(update_info))
+
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                # Afficher l'erreur à l'utilisateur
+                self.root.after(0, lambda: messagebox.showerror("Erreur", f"Erreur lors de la vérification:\n{str(e)}"))
+
+        # Afficher un message temporaire
+        self.set_status("Verification des mises a jour...")
+
+        # Lancer la verification dans un thread
+        thread = threading.Thread(target=check_in_thread)
+        thread.daemon = True
+        thread.start()
+
+    def _show_update_result(self, update_info):
+        """Affiche le resultat de la verification de mise a jour"""
+        try:
+            from ui.update_dialog import UpdateDialog, show_no_update_dialog, show_check_error_dialog
+
+            if update_info.get('error'):
+                # Erreur
+                show_check_error_dialog(self.root, update_info['error'])
+                self.set_status("Erreur lors de la verification des mises a jour")
+            elif update_info.get('available'):
+                # Mise a jour disponible
+                UpdateDialog(self.root, update_info)
+                self.set_status(f"Mise a jour {update_info['latest_version']} disponible")
+            else:
+                # Pas de mise a jour
+                show_no_update_dialog(self.root)
+                self.set_status("Aucune mise a jour disponible")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Erreur", f"Erreur affichage résultat:\n{str(e)}")
 
     def on_about(self):
         """Affiche la boite A propos"""

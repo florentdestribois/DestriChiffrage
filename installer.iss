@@ -6,9 +6,6 @@
 #define MyAppPublisher "Destribois"
 #define MyAppURL "https://github.com/florentdestribois/DestriChiffrage"
 #define MyAppExeName "DestriChiffrage.exe"
-#define MyAppAssocName "DestriChiffrage CSV"
-#define MyAppAssocExt ".csv"
-#define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
 
 [Setup]
 ; Informations de base
@@ -74,7 +71,7 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 
 [Run]
 ; Proposer de lancer l'application après installation
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; Nettoyer les fichiers temporaires

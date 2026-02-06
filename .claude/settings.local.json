@@ -33,7 +33,16 @@
       "Bash(start DestriChiffrage.exe)",
       "Bash(if [ -f \"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" ])",
       "Bash(then echo \"Inno Setup est installe\")",
-      "Bash(else echo \"Inno Setup n''est PAS installe\")"
+      "Bash(else echo \"Inno Setup n''est PAS installe\")",
+      "Bash(start python src/main.py)",
+      "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\installer.iss\")",
+      "Bash(else echo \"Inno Setup n''est PAS installe - Il faut le telecharger\")",
+      "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" installer.iss)",
+      "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" installer_simple.iss)",
+      "Bash(gh:*)",
+      "Bash(build.bat:*)",
+      "Bash(cmd /c build.bat)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" installer_simple.iss)"
     ]
   }
 }

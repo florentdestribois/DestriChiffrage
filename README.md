@@ -114,6 +114,20 @@ pyinstaller --onefile --windowed --name DestriChiffrage src/main.py
 
 L'executable sera dans le dossier `dist/`.
 
+## Documentation
+
+📚 **Documentation complete disponible dans le dossier [`docs/`](docs/)**
+
+### Guides Disponibles
+
+- **[Guide de Build](docs/BUILD.md)** - Compilation et creation de l'installateur
+- **[Systeme de Mise a Jour](docs/AUTO_UPDATE.md)** - Auto-updater et publication de versions
+- **[Implementation Panier](docs/IMPLEMENTATION_PANIER.md)** - Architecture du systeme de panier
+- **[Implementation Installateur](docs/IMPLEMENTATION_EXE.md)** - Infrastructure de build .exe
+- **[Rapport de Tests](docs/RAPPORT_TESTS_BUILD.md)** - Resultats des tests de build
+
+Voir l'[index complet de la documentation](docs/README.md) pour plus de details.
+
 ## Licence
 
 Projet prive - Tous droits reserves
