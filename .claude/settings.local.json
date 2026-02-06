@@ -46,7 +46,11 @@
       "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\installer_simple.iss\")",
       "Bash(where:*)",
       "Bash(tasklist:*)",
-      "Bash(python -m py_compile:*)"
+      "Bash(python -m py_compile:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(pip show:*)",
+      "Bash(gh issue comment 11 --body \"$\\(cat <<''EOF''\n## 📝 Complément - Import de la description\n\nLe champ **description** doit également pouvoir être importé depuis le fichier DPGF CSV.\n\n### Modification du format d''import DPGF\n\nAjouter la colonne `DESCRIPTION` dans le fichier CSV d''import :\n\n```csv\nCODE;NIVEAU;DESIGNATION;DESCRIPTION;CATEGORIE;LARGEUR_MM;HAUTEUR_MM;CARACTERISTIQUES;UNITE;QUANTITE;LOCALISATION;NOTES\n1.1.1;4;Bloc-porte EI30;Bloc-porte coupe-feu 30 minutes, huisserie métallique, finition laquée blanc;COUPE-FEU;830;2040;EI30;U;5;Couloir RDC;\n```\n\n### Tâches supplémentaires\n\n- [ ] Ajouter `DESCRIPTION` dans le mapping CSV de `import_dpgf_csv\\(\\)` \\(database.py\\)\n- [ ] Mettre à jour `create_dpgf_template\\(\\)` pour inclure la colonne DESCRIPTION\n- [ ] Documenter la nouvelle colonne dans le README\nEOF\n\\)\")",
+      "Bash(gh issue comment:*)"
     ]
   }
 }

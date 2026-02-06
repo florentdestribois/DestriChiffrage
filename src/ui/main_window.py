@@ -30,6 +30,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import Database
 from ui.theme import Theme
 from ui.dialogs import ProductDialog, SettingsDialog, AboutDialog, CategoryDialog
+from ui.marches_analyse_view import MarchesAnalyseView
+from ui.dpgf_import_dialog import DPGFImportDialog
 from utils import get_resource_path
 
 
@@ -138,6 +140,14 @@ class MainWindow:
         edit_menu.add_separator()
         edit_menu.add_command(label="Parametres...", command=self.on_settings)
 
+        # Menu Marches
+        marches_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Marches", menu=marches_menu)
+        marches_menu.add_command(label="Analyse des marches...", command=self.on_marches_analyse)
+        marches_menu.add_command(label="Nouveau chantier / DPGF...", command=self.on_new_chantier, accelerator="Ctrl+Shift+N")
+        marches_menu.add_separator()
+        marches_menu.add_command(label="Telecharger modele DPGF...", command=self.on_download_dpgf_template)
+
         # Menu Affichage
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Affichage", menu=view_menu)
@@ -157,6 +167,7 @@ class MainWindow:
         self.root.bind('<Control-n>', lambda e: self.on_add())
         self.root.bind('<Control-m>', lambda e: self.on_edit())
         self.root.bind('<Control-g>', lambda e: self.on_manage_categories())
+        self.root.bind('<Control-Shift-N>', lambda e: self.on_new_chantier())
         self.root.bind('<Delete>', lambda e: self.on_delete())
         self.root.bind('<F5>', lambda e: self.refresh_data())
 
@@ -1077,6 +1088,42 @@ Prix max: {stats['prix_max']:.2f} EUR
     def on_about(self):
         """Affiche la boite A propos"""
         AboutDialog(self.root)
+
+    # ==================== MODULE MARCHES PUBLICS ====================
+
+    def on_marches_analyse(self):
+        """Ouvre la vue d'analyse des marches"""
+        MarchesAnalyseView(self.root, self.db)
+
+    def on_new_chantier(self):
+        """Cree un nouveau chantier avec import DPGF"""
+        from ui.dpgf_chiffrage_view import DPGFChiffrageView
+
+        dialog = DPGFImportDialog(self.root, self.db)
+        if dialog.result and dialog.chantier_id:
+            # Ouvrir directement la vue de chiffrage
+            DPGFChiffrageView(self.root, self.db, dialog.chantier_id)
+
+    def on_download_dpgf_template(self):
+        """Telecharge un modele DPGF vierge"""
+        filepath = filedialog.asksaveasfilename(
+            title="Enregistrer le modele DPGF",
+            defaultextension=".csv",
+            filetypes=[("Fichiers CSV", "*.csv")],
+            initialfile="modele_dpgf.csv"
+        )
+        if filepath:
+            try:
+                self.db.create_dpgf_template(filepath)
+                messagebox.showinfo("Modele cree",
+                    f"Le modele DPGF a ete cree avec succes!\n\n"
+                    f"Fichier: {filepath}\n\n"
+                    f"Format attendu:\n"
+                    f"- NIVEAU 1-3: Structure hierarchique\n"
+                    f"- NIVEAU 4: Articles chiffrables"
+                )
+            except Exception as e:
+                messagebox.showerror("Erreur", f"Erreur: {e}")
 
     def on_clear_database(self):
         """Vide la base de donnees (tous les produits)"""

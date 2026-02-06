@@ -143,6 +143,84 @@ class Database:
             )
         ''')
 
+        # ==================== TABLES MODULE MARCHES PUBLICS ====================
+
+        # Table des chantiers (marches publics)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chantiers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                lieu TEXT,
+                type_projet TEXT,
+                lot TEXT,
+                montant_ht REAL DEFAULT 0,
+                resultat TEXT DEFAULT 'EN_COURS',
+                concurrent TEXT,
+                montant_concurrent REAL,
+                notes TEXT,
+                date_creation TEXT DEFAULT CURRENT_TIMESTAMP,
+                date_modification TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Table des articles DPGF (prix_marche)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS prix_marche (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chantier_id INTEGER NOT NULL,
+                code TEXT,
+                niveau INTEGER DEFAULT 4,
+                designation TEXT NOT NULL,
+                categorie TEXT,
+                largeur_mm INTEGER,
+                hauteur_mm INTEGER,
+                caracteristiques TEXT,
+                unite TEXT DEFAULT 'U',
+                quantite REAL DEFAULT 1,
+                localisation TEXT,
+                notes TEXT,
+                temps_conception REAL DEFAULT 0,
+                temps_fabrication REAL DEFAULT 0,
+                temps_pose REAL DEFAULT 0,
+                cout_materiaux REAL DEFAULT 0,
+                cout_mo_total REAL DEFAULT 0,
+                cout_revient REAL DEFAULT 0,
+                marge_pct REAL DEFAULT 20,
+                prix_unitaire_ht REAL DEFAULT 0,
+                prix_total_ht REAL DEFAULT 0,
+                date_creation TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chantier_id) REFERENCES chantiers(id)
+            )
+        ''')
+
+        # Table de liaison article DPGF <-> produits (multi-produits)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS article_produits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prix_marche_id INTEGER NOT NULL,
+                produit_id INTEGER NOT NULL,
+                quantite REAL DEFAULT 1,
+                prix_unitaire REAL DEFAULT 0,
+                FOREIGN KEY (prix_marche_id) REFERENCES prix_marche(id),
+                FOREIGN KEY (produit_id) REFERENCES produits(id)
+            )
+        ''')
+
+        # Table de structure hierarchique DPGF
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS dpgf_structure (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chantier_id INTEGER NOT NULL,
+                code TEXT,
+                niveau INTEGER NOT NULL,
+                designation TEXT NOT NULL,
+                parent_id INTEGER,
+                ordre INTEGER DEFAULT 0,
+                FOREIGN KEY (chantier_id) REFERENCES chantiers(id),
+                FOREIGN KEY (parent_id) REFERENCES dpgf_structure(id)
+            )
+        ''')
+
         # Parametres par defaut
         default_data_dir = os.path.normpath(os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "data")
@@ -154,6 +232,16 @@ class Database:
             ('tva', '20', 'Taux de TVA en pourcentage'),
             ('entreprise', 'DestriChiffrage', 'Nom de l\'entreprise'),
             ('data_dir', default_data_dir, 'Dossier des donnees (PDF, devis, etc.)'),
+            # Taux horaires pour le module marches publics - Cout entreprise
+            ('taux_cout_conception', '35', 'Cout horaire conception (EUR/h)'),
+            ('taux_cout_fabrication', '28', 'Cout horaire fabrication (EUR/h)'),
+            ('taux_cout_pose', '32', 'Cout horaire pose (EUR/h)'),
+            # Taux horaires pour le module marches publics - Prix de vente
+            ('taux_vente_conception', '45', 'Prix vente horaire conception (EUR/h)'),
+            ('taux_vente_fabrication', '38', 'Prix vente horaire fabrication (EUR/h)'),
+            ('taux_vente_pose', '42', 'Prix vente horaire pose (EUR/h)'),
+            # Marge marche (affichee mais non modifiable - calculee automatiquement)
+            ('marge_marche', '25', 'Marge par defaut pour les marches publics (%)'),
         ]
 
         for cle, valeur, desc in default_params:
@@ -460,8 +548,9 @@ class Database:
         row = cursor.fetchone()
         if row:
             produit = dict(row)
-            # Resoudre le chemin de la fiche technique
+            # Resoudre les chemins des fichiers
             produit['fiche_technique'] = self.resolve_fiche_path(produit.get('fiche_technique'))
+            produit['devis_fournisseur'] = self.resolve_fiche_path(produit.get('devis_fournisseur'))
             return produit
         return None
 
@@ -991,6 +1080,618 @@ class Database:
         os.makedirs(os.path.join(target_data_dir, "Fiches_techniques"), exist_ok=True)
 
         return target_db_path
+
+    # ==================== MODULE MARCHES PUBLICS ====================
+
+    def get_taux_horaires(self) -> Dict[str, Dict[str, float]]:
+        """Recupere les taux horaires (cout entreprise et prix de vente) pour le calcul des couts MO
+
+        Returns:
+            Dict avec structure:
+            {
+                'conception': {'cout': 35.0, 'vente': 45.0},
+                'fabrication': {'cout': 28.0, 'vente': 38.0},
+                'pose': {'cout': 32.0, 'vente': 42.0},
+            }
+        """
+        return {
+            'conception': {
+                'cout': float(self.get_parametre('taux_cout_conception', '35')),
+                'vente': float(self.get_parametre('taux_vente_conception', '45')),
+            },
+            'fabrication': {
+                'cout': float(self.get_parametre('taux_cout_fabrication', '28')),
+                'vente': float(self.get_parametre('taux_vente_fabrication', '38')),
+            },
+            'pose': {
+                'cout': float(self.get_parametre('taux_cout_pose', '32')),
+                'vente': float(self.get_parametre('taux_vente_pose', '42')),
+            },
+        }
+
+    def get_taux_horaires_simples(self) -> Dict[str, float]:
+        """Recupere uniquement les taux de vente (compatibilite)"""
+        taux = self.get_taux_horaires()
+        return {
+            'conception': taux['conception']['vente'],
+            'fabrication': taux['fabrication']['vente'],
+            'pose': taux['pose']['vente'],
+        }
+
+    def get_marge_marche(self) -> float:
+        """Recupere la marge par defaut pour les marches"""
+        return float(self.get_parametre('marge_marche', '25'))
+
+    # ==================== CHANTIERS ====================
+
+    def get_chantiers(self, resultat: str = None) -> List[Dict]:
+        """Recupere tous les chantiers"""
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM chantiers"
+        params = []
+        if resultat:
+            query += " WHERE resultat = ?"
+            params.append(resultat)
+        query += " ORDER BY date_creation DESC"
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_chantier(self, chantier_id: int) -> Optional[Dict]:
+        """Recupere un chantier par son ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM chantiers WHERE id = ?", (chantier_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def add_chantier(self, data: Dict) -> int:
+        """Ajoute un nouveau chantier"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO chantiers (nom, lieu, type_projet, lot, notes, resultat, montant_ht)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data.get('nom', ''),
+            data.get('lieu', ''),
+            data.get('type_projet', ''),
+            data.get('lot', ''),
+            data.get('notes', ''),
+            data.get('resultat', 'EN_COURS'),
+            data.get('montant_ht', 0)
+        ))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def update_chantier(self, chantier_id: int, data: Dict):
+        """Met a jour un chantier"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE chantiers SET
+                nom = ?, lieu = ?, type_projet = ?, lot = ?,
+                montant_ht = ?, resultat = ?, concurrent = ?,
+                montant_concurrent = ?, notes = ?,
+                date_modification = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            data.get('nom', ''),
+            data.get('lieu', ''),
+            data.get('type_projet', ''),
+            data.get('lot', ''),
+            data.get('montant_ht', 0),
+            data.get('resultat', 'EN_COURS'),
+            data.get('concurrent', ''),
+            data.get('montant_concurrent'),
+            data.get('notes', ''),
+            chantier_id
+        ))
+        self.conn.commit()
+
+    def delete_chantier(self, chantier_id: int):
+        """Supprime un chantier et toutes ses donnees associees"""
+        cursor = self.conn.cursor()
+        # Supprimer les produits lies aux articles
+        cursor.execute('''
+            DELETE FROM article_produits
+            WHERE prix_marche_id IN (SELECT id FROM prix_marche WHERE chantier_id = ?)
+        ''', (chantier_id,))
+        # Supprimer les articles
+        cursor.execute("DELETE FROM prix_marche WHERE chantier_id = ?", (chantier_id,))
+        # Supprimer la structure
+        cursor.execute("DELETE FROM dpgf_structure WHERE chantier_id = ?", (chantier_id,))
+        # Supprimer le chantier
+        cursor.execute("DELETE FROM chantiers WHERE id = ?", (chantier_id,))
+        self.conn.commit()
+
+    def update_chantier_montant(self, chantier_id: int):
+        """Recalcule le montant total d'un chantier"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT SUM(prix_total_ht) as total
+            FROM prix_marche WHERE chantier_id = ?
+        ''', (chantier_id,))
+        result = cursor.fetchone()
+        total = result['total'] if result and result['total'] else 0
+        cursor.execute('''
+            UPDATE chantiers SET montant_ht = ?, date_modification = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (total, chantier_id))
+        self.conn.commit()
+
+    # ==================== ARTICLES DPGF (PRIX_MARCHE) ====================
+
+    def get_articles_dpgf(self, chantier_id: int) -> List[Dict]:
+        """Recupere tous les articles d'un chantier"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM prix_marche
+            WHERE chantier_id = ?
+            ORDER BY code, id
+        ''', (chantier_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_article_dpgf(self, article_id: int) -> Optional[Dict]:
+        """Recupere un article DPGF par son ID"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM prix_marche WHERE id = ?", (article_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def add_article_dpgf(self, chantier_id: int, data: Dict) -> int:
+        """Ajoute un article DPGF"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO prix_marche (
+                chantier_id, code, niveau, designation, categorie,
+                largeur_mm, hauteur_mm, caracteristiques, unite,
+                quantite, localisation, notes, marge_pct,
+                temps_conception, temps_fabrication, temps_pose
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            chantier_id,
+            data.get('code', ''),
+            data.get('niveau', 4),
+            data.get('designation', ''),
+            data.get('categorie', ''),
+            data.get('largeur_mm'),
+            data.get('hauteur_mm'),
+            data.get('caracteristiques', ''),
+            data.get('unite', 'U'),
+            data.get('quantite', 1),
+            data.get('localisation', ''),
+            data.get('notes', ''),
+            data.get('marge_pct', self.get_marge_marche()),
+            data.get('temps_conception', 0),
+            data.get('temps_fabrication', 0),
+            data.get('temps_pose', 0)
+        ))
+        self.conn.commit()
+        article_id = cursor.lastrowid
+        # Recalculer les couts initiaux
+        self.recalculer_article_dpgf(article_id)
+        return article_id
+
+    def update_article_dpgf(self, article_id: int, data: Dict):
+        """Met a jour un article DPGF"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE prix_marche SET
+                code = ?, designation = ?, categorie = ?,
+                largeur_mm = ?, hauteur_mm = ?, caracteristiques = ?,
+                unite = ?, quantite = ?, localisation = ?, notes = ?,
+                temps_conception = ?, temps_fabrication = ?, temps_pose = ?,
+                marge_pct = ?
+            WHERE id = ?
+        ''', (
+            data.get('code', ''),
+            data.get('designation', ''),
+            data.get('categorie', ''),
+            data.get('largeur_mm'),
+            data.get('hauteur_mm'),
+            data.get('caracteristiques', ''),
+            data.get('unite', 'U'),
+            data.get('quantite', 1),
+            data.get('localisation', ''),
+            data.get('notes', ''),
+            data.get('temps_conception', 0),
+            data.get('temps_fabrication', 0),
+            data.get('temps_pose', 0),
+            data.get('marge_pct', 25),
+            article_id
+        ))
+        self.conn.commit()
+        # Recalculer les couts
+        self.recalculer_article_dpgf(article_id)
+
+    def delete_article_dpgf(self, article_id: int):
+        """Supprime un article DPGF"""
+        cursor = self.conn.cursor()
+        # Recuperer le chantier_id avant suppression
+        cursor.execute("SELECT chantier_id FROM prix_marche WHERE id = ?", (article_id,))
+        row = cursor.fetchone()
+        chantier_id = row['chantier_id'] if row else None
+        # Supprimer les produits lies
+        cursor.execute("DELETE FROM article_produits WHERE prix_marche_id = ?", (article_id,))
+        # Supprimer l'article
+        cursor.execute("DELETE FROM prix_marche WHERE id = ?", (article_id,))
+        self.conn.commit()
+        # Mettre a jour le montant du chantier
+        if chantier_id:
+            self.update_chantier_montant(chantier_id)
+
+    def recalculer_article_dpgf(self, article_id: int):
+        """Recalcule les couts d'un article DPGF
+
+        Calcule separement:
+        - Cout entreprise (taux_cout_*) : cout reel pour l'entreprise
+        - Prix de vente (taux_vente_*) : prix facture au client
+        - Marge MO : calculee automatiquement = (vente - cout) / cout * 100
+        """
+        article = self.get_article_dpgf(article_id)
+        if not article:
+            return
+
+        taux = self.get_taux_horaires()
+
+        # Calculer le cout des materiaux (somme des produits lies)
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT SUM(quantite * prix_unitaire) as total
+            FROM article_produits WHERE prix_marche_id = ?
+        ''', (article_id,))
+        result = cursor.fetchone()
+        cout_materiaux = result['total'] if result and result['total'] else 0
+
+        # Calculer les COUTS MO (cout entreprise)
+        cout_mo_conception = article['temps_conception'] * taux['conception']['cout']
+        cout_mo_fabrication = article['temps_fabrication'] * taux['fabrication']['cout']
+        cout_mo_pose = article['temps_pose'] * taux['pose']['cout']
+        cout_mo_total = cout_mo_conception + cout_mo_fabrication + cout_mo_pose
+
+        # Calculer les PRIX DE VENTE MO
+        vente_mo_conception = article['temps_conception'] * taux['conception']['vente']
+        vente_mo_fabrication = article['temps_fabrication'] * taux['fabrication']['vente']
+        vente_mo_pose = article['temps_pose'] * taux['pose']['vente']
+        vente_mo_total = vente_mo_conception + vente_mo_fabrication + vente_mo_pose
+
+        # Calculer la marge MO automatique
+        marge_mo_pct = ((vente_mo_total - cout_mo_total) / cout_mo_total * 100) if cout_mo_total > 0 else 0
+
+        # Cout de revient = materiaux + cout MO entreprise
+        cout_revient = cout_materiaux + cout_mo_total
+
+        # Prix de vente = materiaux + prix vente MO (pas de marge supplementaire sur materiaux)
+        # On applique la marge article sur les materiaux uniquement
+        marge_materiaux = article['marge_pct'] / 100
+        prix_materiaux_vente = cout_materiaux * (1 + marge_materiaux)
+        prix_unitaire_ht = prix_materiaux_vente + vente_mo_total
+        prix_total_ht = prix_unitaire_ht * article['quantite']
+
+        # Mettre a jour l'article
+        cursor.execute('''
+            UPDATE prix_marche SET
+                cout_materiaux = ?, cout_mo_total = ?, cout_revient = ?,
+                prix_unitaire_ht = ?, prix_total_ht = ?
+            WHERE id = ?
+        ''', (cout_materiaux, vente_mo_total, cout_revient, prix_unitaire_ht, prix_total_ht, article_id))
+        self.conn.commit()
+
+        # Mettre a jour le montant du chantier
+        self.update_chantier_montant(article['chantier_id'])
+
+    # ==================== PRODUITS LIES (ARTICLE_PRODUITS) ====================
+
+    def get_produits_article(self, article_id: int) -> List[Dict]:
+        """Recupere les produits lies a un article DPGF"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT ap.*, p.designation as produit_designation, p.reference,
+                   p.categorie, p.prix_achat as prix_catalogue
+            FROM article_produits ap
+            JOIN produits p ON ap.produit_id = p.id
+            WHERE ap.prix_marche_id = ?
+            ORDER BY ap.id
+        ''', (article_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def add_produit_article(self, article_id: int, produit_id: int, quantite: float = 1) -> int:
+        """Ajoute un produit a un article DPGF"""
+        # Recuperer le prix actuel du produit
+        produit = self.get_produit(produit_id)
+        if not produit:
+            return -1
+
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO article_produits (prix_marche_id, produit_id, quantite, prix_unitaire)
+            VALUES (?, ?, ?, ?)
+        ''', (article_id, produit_id, quantite, produit['prix_achat']))
+        self.conn.commit()
+
+        # Recalculer l'article
+        self.recalculer_article_dpgf(article_id)
+
+        return cursor.lastrowid
+
+    def update_produit_article(self, liaison_id: int, quantite: float, prix_unitaire: float = None):
+        """Met a jour la quantite/prix d'un produit lie"""
+        cursor = self.conn.cursor()
+        if prix_unitaire is not None:
+            cursor.execute('''
+                UPDATE article_produits SET quantite = ?, prix_unitaire = ?
+                WHERE id = ?
+            ''', (quantite, prix_unitaire, liaison_id))
+        else:
+            cursor.execute('''
+                UPDATE article_produits SET quantite = ?
+                WHERE id = ?
+            ''', (quantite, liaison_id))
+        self.conn.commit()
+
+        # Recuperer l'article_id pour recalculer
+        cursor.execute("SELECT prix_marche_id FROM article_produits WHERE id = ?", (liaison_id,))
+        row = cursor.fetchone()
+        if row:
+            self.recalculer_article_dpgf(row['prix_marche_id'])
+
+    def remove_produit_article(self, liaison_id: int):
+        """Supprime un produit d'un article DPGF"""
+        cursor = self.conn.cursor()
+        # Recuperer l'article_id avant suppression
+        cursor.execute("SELECT prix_marche_id FROM article_produits WHERE id = ?", (liaison_id,))
+        row = cursor.fetchone()
+        article_id = row['prix_marche_id'] if row else None
+
+        cursor.execute("DELETE FROM article_produits WHERE id = ?", (liaison_id,))
+        self.conn.commit()
+
+        # Recalculer l'article
+        if article_id:
+            self.recalculer_article_dpgf(article_id)
+
+    # ==================== STRUCTURE DPGF ====================
+
+    def get_structure_dpgf(self, chantier_id: int) -> List[Dict]:
+        """Recupere la structure hierarchique d'un DPGF"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT * FROM dpgf_structure
+            WHERE chantier_id = ?
+            ORDER BY ordre, niveau, code
+        ''', (chantier_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def add_structure_dpgf(self, chantier_id: int, data: Dict) -> int:
+        """Ajoute un element de structure DPGF"""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO dpgf_structure (chantier_id, code, niveau, designation, parent_id, ordre)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            chantier_id,
+            data.get('code', ''),
+            data.get('niveau', 1),
+            data.get('designation', ''),
+            data.get('parent_id'),
+            data.get('ordre', 0)
+        ))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    # ==================== IMPORT/EXPORT DPGF ====================
+
+    def import_dpgf_csv(self, chantier_id: int, filepath: str) -> int:
+        """Importe un fichier DPGF CSV"""
+        count = 0
+        encoding = 'utf-8-sig'
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig') as test_f:
+                test_f.read(2048)
+        except UnicodeDecodeError:
+            encoding = 'cp1252'
+
+        with open(filepath, 'r', encoding=encoding) as f:
+            sample = f.read(1024)
+            f.seek(0)
+            delimiter = ';' if ';' in sample else ','
+
+            reader = csv.DictReader(f, delimiter=delimiter)
+            for row in reader:
+                niveau = int(row.get('NIVEAU', 4)) if row.get('NIVEAU', '').isdigit() else 4
+
+                if niveau < 4:
+                    # Structure hierarchique (niveau 1-3)
+                    self.add_structure_dpgf(chantier_id, {
+                        'code': row.get('CODE', ''),
+                        'niveau': niveau,
+                        'designation': row.get('DESIGNATION', ''),
+                    })
+                else:
+                    # Article chiffrable (niveau 4)
+                    try:
+                        quantite = float(row.get('QUANTITE', '1').replace(',', '.')) if row.get('QUANTITE') else 1
+                    except:
+                        quantite = 1
+
+                    try:
+                        largeur = int(row.get('LARGEUR_MM', '')) if row.get('LARGEUR_MM', '').isdigit() else None
+                    except:
+                        largeur = None
+
+                    try:
+                        hauteur = int(row.get('HAUTEUR_MM', '')) if row.get('HAUTEUR_MM', '').isdigit() else None
+                    except:
+                        hauteur = None
+
+                    self.add_article_dpgf(chantier_id, {
+                        'code': row.get('CODE', ''),
+                        'niveau': 4,
+                        'designation': row.get('DESIGNATION', ''),
+                        'categorie': row.get('CATEGORIE', ''),
+                        'largeur_mm': largeur,
+                        'hauteur_mm': hauteur,
+                        'caracteristiques': row.get('CARACTERISTIQUES', ''),
+                        'unite': row.get('UNITE', 'U'),
+                        'quantite': quantite,
+                        'localisation': row.get('LOCALISATION', ''),
+                        'notes': row.get('NOTES', ''),
+                    })
+                    count += 1
+
+        return count
+
+    def export_dpgf_csv(self, chantier_id: int, filepath: str, version_client: bool = False) -> int:
+        """Exporte un DPGF vers CSV"""
+        articles = self.get_articles_dpgf(chantier_id)
+        structure = self.get_structure_dpgf(chantier_id)
+        taux = self.get_taux_horaires()
+
+        with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+            if version_client:
+                # Version client simplifiee
+                headers = ['CODE', 'DESIGNATION', 'UNITE', 'QUANTITE', 'PRIX_UNITAIRE_HT', 'PRIX_TOTAL_HT']
+            else:
+                # Version interne complete
+                headers = ['CODE', 'NIVEAU', 'DESIGNATION', 'CATEGORIE', 'LARGEUR_MM', 'HAUTEUR_MM',
+                          'CARACTERISTIQUES', 'UNITE', 'QUANTITE', 'LOCALISATION',
+                          'TEMPS_CONCEPTION', 'TEMPS_FABRICATION', 'TEMPS_POSE',
+                          'COUT_MATERIAUX', 'COUT_MO', 'COUT_REVIENT', 'MARGE_PCT',
+                          'PRIX_UNITAIRE_HT', 'PRIX_TOTAL_HT', 'PRODUITS_LIES']
+
+            writer = csv.writer(f, delimiter=';')
+            writer.writerow(headers)
+
+            # Ecrire la structure (niveaux 1-3)
+            for s in structure:
+                if version_client:
+                    writer.writerow([s['code'], s['designation'], '', '', '', ''])
+                else:
+                    writer.writerow([s['code'], s['niveau'], s['designation']] + [''] * 17)
+
+            # Ecrire les articles
+            for a in articles:
+                produits_lies = self.get_produits_article(a['id'])
+                produits_str = ' | '.join([f"{p['produit_designation']} x{p['quantite']}" for p in produits_lies])
+
+                if version_client:
+                    writer.writerow([
+                        a['code'],
+                        a['designation'],
+                        a['unite'],
+                        a['quantite'],
+                        f"{a['prix_unitaire_ht']:.2f}",
+                        f"{a['prix_total_ht']:.2f}"
+                    ])
+                else:
+                    writer.writerow([
+                        a['code'],
+                        a['niveau'],
+                        a['designation'],
+                        a['categorie'] or '',
+                        a['largeur_mm'] or '',
+                        a['hauteur_mm'] or '',
+                        a['caracteristiques'] or '',
+                        a['unite'],
+                        a['quantite'],
+                        a['localisation'] or '',
+                        a['temps_conception'],
+                        a['temps_fabrication'],
+                        a['temps_pose'],
+                        f"{a['cout_materiaux']:.2f}",
+                        f"{a['cout_mo_total']:.2f}",
+                        f"{a['cout_revient']:.2f}",
+                        a['marge_pct'],
+                        f"{a['prix_unitaire_ht']:.2f}",
+                        f"{a['prix_total_ht']:.2f}",
+                        produits_str
+                    ])
+
+        return len(articles)
+
+    def export_dpgf_files(self, chantier_id: int, export_dir: str,
+                         include_fiches: bool = True, include_devis: bool = True) -> tuple:
+        """
+        Exporte les fichiers PDF (fiches techniques et devis) des produits lies aux articles DPGF
+
+        Args:
+            chantier_id: ID du chantier
+            export_dir: Dossier de destination
+            include_fiches: Copier les fiches techniques
+            include_devis: Copier les devis fournisseur
+
+        Returns:
+            Tuple (nb_fiches_copiees, nb_devis_copies)
+        """
+        # Recuperer tous les produits lies aux articles du chantier
+        articles = self.get_articles_dpgf(chantier_id)
+
+        # Collecter tous les produits uniques lies
+        produits_ids = set()
+        for article in articles:
+            produits_lies = self.get_produits_article(article['id'])
+            for p in produits_lies:
+                produits_ids.add(p['produit_id'])
+
+        # Recuperer les informations completes des produits
+        produits = []
+        for produit_id in produits_ids:
+            produit = self.get_produit(produit_id)
+            if produit:
+                produits.append(produit)
+
+        # Utiliser la methode existante de copie
+        return self._copy_pdf_files(produits, export_dir, include_fiches, include_devis)
+
+    def create_dpgf_template(self, filepath: str):
+        """Cree un template DPGF CSV vierge"""
+        with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+            writer = csv.writer(f, delimiter=';')
+            headers = ['CODE', 'NIVEAU', 'DESIGNATION', 'CATEGORIE', 'LARGEUR_MM', 'HAUTEUR_MM',
+                      'CARACTERISTIQUES', 'UNITE', 'QUANTITE', 'LOCALISATION', 'NOTES']
+            writer.writerow(headers)
+
+            # Exemples
+            examples = [
+                ['1', '1', 'LOT 1 - MENUISERIES INTERIEURES', '', '', '', '', '', '', '', ''],
+                ['1.1', '2', 'Blocs-portes', '', '', '', '', '', '', '', ''],
+                ['1.1.1', '3', 'Blocs-portes coupe-feu', '', '', '', '', '', '', '', ''],
+                ['1.1.1.1', '4', 'Bloc-porte EI30 204x83', 'COUPE-FEU', '830', '2040', 'EI30 - Huisserie metal', 'U', '5', 'Couloir RDC', ''],
+                ['1.1.1.2', '4', 'Bloc-porte EI60 204x93', 'COUPE-FEU', '930', '2040', 'EI60 - Huisserie metal', 'U', '3', 'Escalier', ''],
+                ['1.1.2', '3', 'Blocs-portes acoustiques', '', '', '', '', '', '', '', ''],
+                ['1.1.2.1', '4', 'Bloc-porte RA 35dB', 'ACOUSTIQUE', '830', '2040', 'RA 35dB', 'U', '8', 'Bureaux', ''],
+            ]
+            for ex in examples:
+                writer.writerow(ex)
+
+    # ==================== STATISTIQUES MARCHES ====================
+
+    def get_stats_marches(self) -> Dict:
+        """Recupere les statistiques des marches"""
+        cursor = self.conn.cursor()
+
+        stats = {}
+
+        # Nombre total de chantiers
+        cursor.execute("SELECT COUNT(*) as cnt FROM chantiers")
+        stats['total_chantiers'] = cursor.fetchone()['cnt']
+
+        # Par resultat
+        cursor.execute('''
+            SELECT resultat, COUNT(*) as cnt
+            FROM chantiers GROUP BY resultat
+        ''')
+        stats['par_resultat'] = {row['resultat']: row['cnt'] for row in cursor.fetchall()}
+
+        # Montant total gagne
+        cursor.execute("SELECT SUM(montant_ht) as total FROM chantiers WHERE resultat = 'GAGNE'")
+        result = cursor.fetchone()
+        stats['montant_gagne'] = result['total'] if result['total'] else 0
+
+        # Taux de reussite
+        cursor.execute("SELECT COUNT(*) as cnt FROM chantiers WHERE resultat IN ('GAGNE', 'PERDU')")
+        total_termine = cursor.fetchone()['cnt']
+        nb_gagne = stats['par_resultat'].get('GAGNE', 0)
+        stats['taux_reussite'] = (nb_gagne / total_termine * 100) if total_termine > 0 else 0
+
+        return stats
 
     def close(self):
         """Ferme la connexion"""

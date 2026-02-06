@@ -746,6 +746,105 @@ class SettingsDialog:
             self.entries[key] = entry
             row += 1
 
+        # Onglet Chiffrage Marches
+        chiffrage_frame = tk.Frame(notebook, bg=Theme.COLORS['bg_alt'], padx=24, pady=24)
+        notebook.add(chiffrage_frame, text="  Chiffrage marches  ")
+
+        tk.Label(chiffrage_frame, text="TAUX HORAIRES MAIN D'OEUVRE",
+                font=Theme.FONTS['subheading'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 12))
+
+        taux_frame = tk.Frame(chiffrage_frame, bg=Theme.COLORS['bg_alt'])
+        taux_frame.pack(fill=tk.X, pady=(0, 16))
+
+        # En-tetes des colonnes
+        tk.Label(taux_frame, text="", font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt']).grid(row=0, column=0, padx=5)
+        tk.Label(taux_frame, text="Cout entreprise", font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).grid(row=0, column=1, padx=5, pady=(0, 8))
+        tk.Label(taux_frame, text="Prix de vente", font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).grid(row=0, column=2, padx=5, pady=(0, 8))
+        tk.Label(taux_frame, text="Marge", font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).grid(row=0, column=3, padx=5, pady=(0, 8))
+
+        taux_params = [
+            ('conception', 'Conception (EUR/h)'),
+            ('fabrication', 'Fabrication (EUR/h)'),
+            ('pose', 'Pose (EUR/h)'),
+        ]
+
+        self.marge_labels = {}
+
+        for i, (type_taux, label) in enumerate(taux_params):
+            row = i + 1
+            # Label du type
+            tk.Label(taux_frame, text=label, font=Theme.FONTS['body'],
+                    bg=Theme.COLORS['bg_alt'],
+                    fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='e', padx=(5, 12), pady=8)
+
+            # Cout entreprise
+            cout_key = f'taux_cout_{type_taux}'
+            cout_entry = tk.Entry(taux_frame, width=8, font=Theme.FONTS['body'],
+                                 bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                 bd=1, relief='solid', justify='center')
+            cout_entry.insert(0, self.db.get_parametre(cout_key, '35'))
+            cout_entry.grid(row=row, column=1, padx=5, pady=8)
+            cout_entry.bind('<KeyRelease>', lambda e, t=type_taux: self._update_marge_display(t))
+            self.entries[cout_key] = cout_entry
+
+            # Prix de vente
+            vente_key = f'taux_vente_{type_taux}'
+            vente_entry = tk.Entry(taux_frame, width=8, font=Theme.FONTS['body'],
+                                  bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                  bd=1, relief='solid', justify='center')
+            vente_entry.insert(0, self.db.get_parametre(vente_key, '45'))
+            vente_entry.grid(row=row, column=2, padx=5, pady=8)
+            vente_entry.bind('<KeyRelease>', lambda e, t=type_taux: self._update_marge_display(t))
+            self.entries[vente_key] = vente_entry
+
+            # Marge calculee (lecture seule)
+            marge_label = tk.Label(taux_frame, text="0.0%", font=Theme.FONTS['body'],
+                                  bg=Theme.COLORS['bg_alt'],
+                                  fg=Theme.COLORS['success'], width=8)
+            marge_label.grid(row=row, column=3, padx=5, pady=8)
+            self.marge_labels[type_taux] = marge_label
+
+        # Calculer les marges initiales
+        for type_taux, _ in taux_params:
+            self._update_marge_display(type_taux)
+
+        tk.Label(chiffrage_frame, text="MARGE MATERIAUX",
+                font=Theme.FONTS['subheading'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(16, 12))
+
+        marge_frame = tk.Frame(chiffrage_frame, bg=Theme.COLORS['bg_alt'])
+        marge_frame.pack(fill=tk.X)
+
+        tk.Label(marge_frame, text="Marge par defaut sur materiaux (%)",
+                font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).pack(side=tk.LEFT)
+
+        marge_entry = tk.Entry(marge_frame, width=10, font=Theme.FONTS['body'],
+                              bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                              bd=1, relief='solid', justify='center')
+        marge_entry.insert(0, self.db.get_parametre('marge_marche', '25'))
+        marge_entry.pack(side=tk.LEFT, padx=(12, 0))
+        self.entries['marge_marche'] = marge_entry
+
+        tk.Label(chiffrage_frame,
+                text="La marge MO est calculee automatiquement a partir des couts et prix de vente.\n"
+                     "La marge materiaux s'applique sur le cout d'achat des produits lies.",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted'],
+                justify='left').pack(anchor='w', pady=(24, 0))
+
         # Onglet Categories
         cat_frame = tk.Frame(notebook, bg=Theme.COLORS['bg_alt'], padx=24, pady=24)
         notebook.add(cat_frame, text="  Categories  ")
@@ -791,6 +890,26 @@ class SettingsDialog:
         dialog = CategoryDialog(self.dialog, self.db)
         if dialog.result:
             self.result = True
+
+    def _update_marge_display(self, type_taux):
+        """Met a jour l'affichage de la marge pour un type de taux"""
+        try:
+            cout_key = f'taux_cout_{type_taux}'
+            vente_key = f'taux_vente_{type_taux}'
+
+            cout = float(self.entries[cout_key].get().replace(',', '.') or 0)
+            vente = float(self.entries[vente_key].get().replace(',', '.') or 0)
+
+            if cout > 0:
+                marge = ((vente - cout) / cout) * 100
+                self.marge_labels[type_taux].config(
+                    text=f"{marge:.1f}%",
+                    fg=Theme.COLORS['success'] if marge > 0 else Theme.COLORS['danger']
+                )
+            else:
+                self.marge_labels[type_taux].config(text="-", fg=Theme.COLORS['text_muted'])
+        except (ValueError, KeyError):
+            pass
 
     def _browse_data_dir(self, entry_widget):
         """Ouvre un dialogue pour selectionner le dossier data"""
