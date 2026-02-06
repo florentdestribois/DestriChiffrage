@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(python3:*)",
+      "Bash(where:*)",
+      "Bash(C:\\\\Python314\\\\python.exe:*)",
+      "Bash(/c/Python314/python.exe:*)",
+      "mcp__PDF_Tools_-_Analyze__Extract__Fill__Compare__read_pdf_content",
+      "Bash(dir:*)"
     ]
   }
 }
