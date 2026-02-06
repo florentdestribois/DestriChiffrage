@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import Database
 from ui.theme import Theme
 from ui.dialogs import ProductDialog, SettingsDialog, AboutDialog, CategoryDialog
+from utils import get_resource_path
 
 
 class MainWindow:
@@ -78,7 +79,7 @@ class MainWindow:
         """Charge l'icone PDF"""
         if HAS_PIL:
             try:
-                icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'pdf.png')
+                icon_path = get_resource_path('src/assets/pdf.png')
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
                     # Redimensionner l'icone pour qu'elle tienne dans la cellule
@@ -91,7 +92,7 @@ class MainWindow:
         """Charge l'icone Devis (identique au PDF)"""
         if HAS_PIL:
             try:
-                icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'pdf.png')
+                icon_path = get_resource_path('src/assets/pdf.png')
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
                     # Redimensionner l'icone pour qu'elle tienne dans la cellule
@@ -174,7 +175,7 @@ class MainWindow:
         self.logo_image = None
         if HAS_PIL:
             try:
-                logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logo.png')
+                logo_path = get_resource_path('src/assets/logo.png')
                 if os.path.exists(logo_path):
                     img = Image.open(logo_path)
                     img = img.resize((44, 44), Image.Resampling.LANCZOS)

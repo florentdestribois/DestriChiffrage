@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from database import Database
 from ui.main_window import MainWindow
 from ui.theme import Theme
+from utils import get_resource_path
 
 
 def main():
@@ -28,7 +29,7 @@ def main():
     root.minsize(1024, 700)
 
     # Icone (si disponible)
-    icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "icon.ico")
+    icon_path = get_resource_path('assets/icon.ico')
     if os.path.exists(icon_path):
         root.iconbitmap(icon_path)
 

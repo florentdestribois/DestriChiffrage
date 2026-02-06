@@ -6,7 +6,37 @@ Gestion de la configuration globale de l'application
 """
 
 import os
+import sys
 import configparser
+
+
+def _get_default_data_dir() -> str:
+    """
+    Détermine le dossier data par défaut.
+
+    En mode PyInstaller : dossier data à côté de l'exécutable
+    En mode développement : dossier data du projet
+    """
+    try:
+        # PyInstaller : dossier data à côté de l'exécutable
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+        else:
+            # Mode développement
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    except:
+        # Fallback
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    data_dir = os.path.join(base_path, 'data')
+
+    # Créer le dossier et sous-dossiers s'ils n'existent pas
+    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(os.path.join(data_dir, 'Fiches_techniques'), exist_ok=True)
+    os.makedirs(os.path.join(data_dir, 'Devis_fournisseur'), exist_ok=True)
+
+    return os.path.normpath(os.path.abspath(data_dir))
+
 
 class Config:
     """Gestion de la configuration globale"""
@@ -14,7 +44,14 @@ class Config:
     def __init__(self):
         """Initialise la configuration"""
         # Fichier de configuration dans le dossier de l'application
-        self.config_dir = os.path.join(os.path.dirname(__file__), "..", "config")
+        if getattr(sys, 'frozen', False):
+            # Mode PyInstaller : config à côté de l'exécutable
+            base_dir = os.path.dirname(sys.executable)
+            self.config_dir = os.path.join(base_dir, "config")
+        else:
+            # Mode développement
+            self.config_dir = os.path.join(os.path.dirname(__file__), "..", "config")
+
         self.config_file = os.path.join(self.config_dir, "settings.ini")
 
         # Créer le dossier de config si nécessaire
@@ -31,9 +68,7 @@ class Config:
 
     def _create_default_config(self):
         """Crée une configuration par défaut"""
-        default_data_dir = os.path.normpath(os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "data")
-        ))
+        default_data_dir = _get_default_data_dir()
 
         self.parser['Application'] = {
             'data_dir': default_data_dir,
@@ -51,9 +86,7 @@ class Config:
 
         if not data_dir:
             # Valeur par défaut
-            data_dir = os.path.normpath(os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "data")
-            ))
+            data_dir = _get_default_data_dir()
 
         return data_dir
 

@@ -15,3 +15,9 @@ pytest>=7.0
 
 # Optionnel - pour l'export Excel
 openpyxl>=3.0
+
+# Traitement d'images (icônes)
+Pillow>=10.0
+
+# Auto-updater (pour les mises à jour automatiques)
+requests>=2.31

@@ -25,7 +25,15 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(gh issue create:*)",
-      "Bash(gh issue view:*)"
+      "Bash(gh issue view:*)",
+      "Bash(data\" \\\\\n            src/main.py\n\n# Créer installateur avec Inno Setup\niscc installer_script.iss\n\\\\`\\\\`\\\\`\n\n### Option 2 : cx_Freeze\n**Avantages :**\n- Alternative à PyInstaller\n- Bonne compatibilité Tkinter\n\n### Option 3 : py2exe \\(Windows only\\)\n**Avantages :**\n- Spécialisé Windows\n- Léger\n\n## 🔄 Système de mise à jour proposé\n\n### Architecture :\n1. **Fichier version.json** sur GitHub Releases\n2. **Module updater.py** dans l''application\n3. **Vérification au démarrage** \\(une fois par jour maximum\\)\n4. **Interface graphique** pour notifier l''utilisateur\n\n### Workflow :\n\\\\`\\\\`\\\\`\nApp démarrage → Vérifier version distante → Comparer avec version locale\n                                          ↓\n                                  Nouvelle version ?\n                                  ↓              ↓\n                                OUI            NON\n                                  ↓              ↓\n                     Notifier utilisateur    Continuer\n                                  ↓\n                     Télécharger .exe\n                                  ↓\n                     Installer et redémarrer\n\\\\`\\\\`\\\\`\n\n## 💡 Notes additionnelles\n\n### Considérations importantes :\n1. **Taille de l''exe** : PyInstaller peut créer des fichiers volumineux \\(50-100 MB\\)\n2. **Antivirus** : Les exe empaquetés sont parfois détectés comme faux positifs\n3. **Permissions** : Installation dans Program Files nécessite droits administrateur\n4. **Données utilisateur** : Séparer données app et données utilisateur \\(AppData\\)\n\n### Ressources :\n- [PyInstaller Documentation]\\(https://pyinstaller.org/\\)\n- [Inno Setup]\\(https://jrsoftware.org/isinfo.php\\)\n- [Auto-update examples]\\(https://github.com/topics/auto-update\\)\n\n### Structure post-installation :\n\\\\`\\\\`\\\\`\nC:\\\\Program Files\\\\DestriChiffrage\\\\\n├── DestriChiffrage.exe\n├── assets\\\\\n│   ├── icon.ico\n│   ├── pdf.png\n│   └── logo.png\n└── _internal\\\\          # Dépendances PyInstaller\n\nC:\\\\Users\\\\%USERNAME%\\\\AppData\\\\Local\\\\DestriChiffrage\\\\\n├── data\\\\\n│   ├── catalogue.db\n│   ├── Fiches_techniques\\\\\n│   └── Devis_fournisseur\\\\\n└── config.ini\n\\\\`\\\\`\\\\`\nISSUE_EOF\n\\)\" --label \"enhancement\")",
+      "Bash(wc:*)",
+      "Bash(pip freeze:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(start DestriChiffrage.exe)",
+      "Bash(if [ -f \"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" ])",
+      "Bash(then echo \"Inno Setup est installe\")",
+      "Bash(else echo \"Inno Setup n''est PAS installe\")"
     ]
   }
 }
