@@ -1,0 +1,4 @@
+﻿CATEGORIE;SOUS-CATEGORIE;SOUS-CATEGORIE 2;SOUS-CATEGORIE 3;DESIGNATION;HAUTEUR;LARGEUR;PRIX_UNITAIRE_HT;ARTICLE;FOURNISSEUR;CHANTIER;FICHE_TECHNIQUE;FICHIER_PDF
+STANDARD;Porte interieure;;;Porte pleine 83x204;2040;830;125.50;REF001;Dispano;Projet A;Fiches_techniques\porte_standard.pdf;Devis_fournisseur\devis_001.pdf
+COUPE-FEU;EI30;Bloc-porte;;Bloc-porte CF 1/2h;2040;930;350.00;CF30-001;Dispano;Projet B;Fiches_techniques\Portes_et_chassis\EI30\fiche.pdf;
+ACOUSTIQUE;RA 35dB;;;Porte acoustique isolee;2040;830;280.00;ACO-35;Dispano;Projet C;;Devis_fournisseur\devis_002.pdf

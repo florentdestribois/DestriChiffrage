@@ -44,6 +44,8 @@ class MainWindow:
         self.search_var = tk.StringVar()
         self.category_var = tk.StringVar(value="Toutes")
         self.subcategory_var = tk.StringVar(value="Toutes")
+        self.subcategory2_var = tk.StringVar(value="Toutes")
+        self.subcategory3_var = tk.StringVar(value="Toutes")
         self.hauteur_var = tk.StringVar(value="Toutes")
         self.largeur_var = tk.StringVar(value="Toutes")
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
@@ -304,19 +306,47 @@ class MainWindow:
         self.category_combo.pack(pady=(2, 0))
         self.category_combo.bind('<<ComboboxSelected>>', self.on_category_change)
 
-        # Filtre sous-categorie
+        # Filtre sous-categorie niveau 1
         subcat_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
-        subcat_frame.pack(side=tk.LEFT, padx=(0, 24))
+        subcat_frame.pack(side=tk.LEFT, padx=(0, 12))
 
-        tk.Label(subcat_frame, text="Sous-categorie",
+        tk.Label(subcat_frame, text="Sous-cat. 1",
                 font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w')
 
         self.subcategory_combo = ttk.Combobox(subcat_frame, textvariable=self.subcategory_var,
-                                             width=28, state='readonly',
+                                             width=18, state='readonly',
                                              font=Theme.FONTS['body'])
         self.subcategory_combo.pack(pady=(2, 0))
-        self.subcategory_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
+        self.subcategory_combo.bind('<<ComboboxSelected>>', self.on_subcategory_change)
+
+        # Filtre sous-categorie niveau 2
+        subcat2_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
+        subcat2_frame.pack(side=tk.LEFT, padx=(0, 12))
+
+        tk.Label(subcat2_frame, text="Sous-cat. 2",
+                font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.subcategory2_combo = ttk.Combobox(subcat2_frame, textvariable=self.subcategory2_var,
+                                              width=18, state='readonly',
+                                              font=Theme.FONTS['body'])
+        self.subcategory2_combo.pack(pady=(2, 0))
+        self.subcategory2_combo.bind('<<ComboboxSelected>>', self.on_subcategory2_change)
+
+        # Filtre sous-categorie niveau 3
+        subcat3_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
+        subcat3_frame.pack(side=tk.LEFT, padx=(0, 16))
+
+        tk.Label(subcat3_frame, text="Sous-cat. 3",
+                font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.subcategory3_combo = ttk.Combobox(subcat3_frame, textvariable=self.subcategory3_var,
+                                              width=18, state='readonly',
+                                              font=Theme.FONTS['body'])
+        self.subcategory3_combo.pack(pady=(2, 0))
+        self.subcategory3_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
 
         # Filtre hauteur
         hauteur_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
@@ -374,26 +404,29 @@ class MainWindow:
         table_frame.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
 
         # Colonnes du tableau
-        columns = ('id', 'categorie', 'sous_categorie', 'designation',
-                  'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference', 'pdf', 'devis', 'cart')
+        columns = ('id', 'categorie', 'sous_categorie', 'sous_categorie_2', 'sous_categorie_3',
+                  'designation', 'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference',
+                  'pdf', 'devis', 'cart')
 
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings',
                                 selectmode='browse')
 
         # Configuration des colonnes
         col_config = {
-            'id': ('ID', 60, 'center'),
-            'categorie': ('Categorie', 110, 'w'),
-            'sous_categorie': ('Sous-cat.', 130, 'w'),
-            'designation': ('Designation', 280, 'w'),
-            'hauteur': ('Hauteur', 70, 'center'),
-            'largeur': ('Largeur', 70, 'center'),
-            'prix_achat': ('Achat HT', 90, 'e'),
-            'prix_vente': ('Vente HT', 90, 'e'),
-            'reference': ('Ref.', 80, 'center'),
-            'pdf': ('Fiche', 60, 'center'),
-            'devis': ('Devis', 60, 'center'),
-            'cart': ('Panier', 60, 'center'),
+            'id': ('ID', 50, 'center'),
+            'categorie': ('Categorie', 100, 'w'),
+            'sous_categorie': ('Sous-cat. 1', 100, 'w'),
+            'sous_categorie_2': ('Sous-cat. 2', 100, 'w'),
+            'sous_categorie_3': ('Sous-cat. 3', 100, 'w'),
+            'designation': ('Designation', 220, 'w'),
+            'hauteur': ('Hauteur', 60, 'center'),
+            'largeur': ('Largeur', 60, 'center'),
+            'prix_achat': ('Achat HT', 80, 'e'),
+            'prix_vente': ('Vente HT', 80, 'e'),
+            'reference': ('Ref.', 70, 'center'),
+            'pdf': ('Fiche', 50, 'center'),
+            'devis': ('Devis', 50, 'center'),
+            'cart': ('Panier', 50, 'center'),
         }
 
         for col, (text, width, anchor) in col_config.items():
@@ -535,8 +568,8 @@ class MainWindow:
         cats = ['Toutes'] + self.db.get_categories_names()
         self.category_combo['values'] = cats
 
-        # Mettre a jour les sous-categories
-        self.update_subcategories()
+        # Mettre a jour les sous-categories (avec preservation des selections)
+        self.update_subcategories(preserve_selection=True)
 
         # Mettre a jour les hauteurs et largeurs
         self.update_hauteurs()
@@ -550,25 +583,90 @@ class MainWindow:
 
         self.set_status(f"Actualise - {datetime.now().strftime('%H:%M')}")
 
-    def update_subcategories(self):
-        """Met a jour la liste des sous-categories selon la categorie selectionnee"""
+    def update_subcategories(self, preserve_selection: bool = False):
+        """Met a jour la liste des sous-categories niveau 1 selon la categorie selectionnee"""
         categorie = self.category_var.get()
+        current_selection = self.subcategory_var.get()
 
-        if categorie == "Toutes":
-            produits = self.db.search_produits()
-        else:
-            produits = self.db.search_produits(categorie=categorie)
+        # Utiliser la nouvelle methode avec filtrage
+        subcats = self.db.get_subcategories_filtered(
+            level=1,
+            categorie=categorie if categorie != "Toutes" else None
+        )
 
-        # Extraire les sous-categories uniques
-        subcats = sorted(set(p['sous_categorie'] for p in produits if p['sous_categorie']))
         self.subcategory_combo['values'] = ['Toutes'] + subcats
-        self.subcategory_var.set('Toutes')
+
+        # Preserver la selection si demande et si elle existe encore
+        if preserve_selection and current_selection in subcats:
+            self.subcategory_var.set(current_selection)
+        else:
+            self.subcategory_var.set('Toutes')
+
+        # Mettre a jour les sous-categories niveau 2
+        self.update_subcategories2(preserve_selection)
+
+    def update_subcategories2(self, preserve_selection: bool = False):
+        """Met a jour la liste des sous-categories niveau 2 selon les filtres precedents"""
+        categorie = self.category_var.get()
+        sous_cat1 = self.subcategory_var.get()
+        current_selection = self.subcategory2_var.get()
+
+        # Utiliser la methode avec filtrage en cascade
+        subcats2 = self.db.get_subcategories_filtered(
+            level=2,
+            categorie=categorie if categorie != "Toutes" else None,
+            sous_categorie=sous_cat1 if sous_cat1 != "Toutes" else None
+        )
+
+        self.subcategory2_combo['values'] = ['Toutes'] + subcats2
+
+        # Preserver la selection si demande et si elle existe encore
+        if preserve_selection and current_selection in subcats2:
+            self.subcategory2_var.set(current_selection)
+        else:
+            self.subcategory2_var.set('Toutes')
+
+        # Mettre a jour les sous-categories niveau 3
+        self.update_subcategories3(preserve_selection)
+
+    def update_subcategories3(self, preserve_selection: bool = False):
+        """Met a jour la liste des sous-categories niveau 3 selon les filtres precedents"""
+        categorie = self.category_var.get()
+        sous_cat1 = self.subcategory_var.get()
+        sous_cat2 = self.subcategory2_var.get()
+        current_selection = self.subcategory3_var.get()
+
+        # Utiliser la methode avec filtrage en cascade
+        subcats3 = self.db.get_subcategories_filtered(
+            level=3,
+            categorie=categorie if categorie != "Toutes" else None,
+            sous_categorie=sous_cat1 if sous_cat1 != "Toutes" else None,
+            sous_categorie_2=sous_cat2 if sous_cat2 != "Toutes" else None
+        )
+
+        self.subcategory3_combo['values'] = ['Toutes'] + subcats3
+
+        # Preserver la selection si demande et si elle existe encore
+        if preserve_selection and current_selection in subcats3:
+            self.subcategory3_var.set(current_selection)
+        else:
+            self.subcategory3_var.set('Toutes')
 
     def on_category_change(self, event=None):
         """Callback quand la categorie change"""
-        self.update_subcategories()
+        self.update_subcategories(preserve_selection=False)
         self.update_hauteurs()
         self.update_largeurs()
+        self.on_search()
+
+    def on_subcategory_change(self, event=None):
+        """Callback quand la sous-categorie niveau 1 change"""
+        self.update_subcategories2(preserve_selection=False)
+        self.on_search()
+
+    def on_subcategory2_change(self, event=None):
+        """Callback quand la sous-categorie niveau 2 change"""
+        self.update_subcategories3(preserve_selection=False)
         self.on_search()
 
     def update_hauteurs(self):
@@ -599,6 +697,8 @@ class MainWindow:
         terme = self.search_var.get()
         categorie = self.category_var.get()
         subcategorie = self.subcategory_var.get()
+        subcategorie2 = self.subcategory2_var.get()
+        subcategorie3 = self.subcategory3_var.get()
         hauteur_str = self.hauteur_var.get()
         largeur_str = self.largeur_var.get()
 
@@ -609,9 +709,17 @@ class MainWindow:
         # Recherche de base avec filtres
         produits = self.db.search_produits(terme, categorie, hauteur=hauteur, largeur=largeur)
 
-        # Filtre par sous-categorie
+        # Filtre par sous-categorie niveau 1
         if subcategorie and subcategorie != "Toutes":
             produits = [p for p in produits if p['sous_categorie'] == subcategorie]
+
+        # Filtre par sous-categorie niveau 2
+        if subcategorie2 and subcategorie2 != "Toutes":
+            produits = [p for p in produits if p.get('sous_categorie_2') == subcategorie2]
+
+        # Filtre par sous-categorie niveau 3
+        if subcategorie3 and subcategorie3 != "Toutes":
+            produits = [p for p in produits if p.get('sous_categorie_3') == subcategorie3]
 
         try:
             valeur_marge = self.marge_var.get().replace(',', '.').replace('%', '').strip()
@@ -645,6 +753,8 @@ class MainWindow:
                 p['id'],
                 p['categorie'],
                 p['sous_categorie'] or '-',
+                p.get('sous_categorie_2') or '-',
+                p.get('sous_categorie_3') or '-',
                 p['designation'],
                 p['hauteur'] or '-',
                 p['largeur'] or '-',
@@ -671,6 +781,8 @@ class MainWindow:
         self.search_var.set("")
         self.category_var.set("Toutes")
         self.subcategory_var.set("Toutes")
+        self.subcategory2_var.set("Toutes")
+        self.subcategory3_var.set("Toutes")
         self.hauteur_var.set("Toutes")
         self.largeur_var.set("Toutes")
         self.update_subcategories()
@@ -759,17 +871,22 @@ class MainWindow:
 
     def on_download_template(self):
         """Telecharge un modele CSV pour l'import"""
+        print("[DEBUG] on_download_template() appelée")
         filepath = filedialog.asksaveasfilename(
             title="Enregistrer le modele d'import",
             defaultextension=".csv",
             filetypes=[("Fichiers CSV", "*.csv")],
-            initialfilename="modele_import.csv"
+            initialfile="modele_import.csv"
         )
+        print(f"[DEBUG] Fichier sélectionné: {filepath}")
         if filepath:
             try:
+                print("[DEBUG] Appel de create_import_template()")
                 self.db.create_import_template(filepath)
+                print("[DEBUG] Template créé avec succès")
                 messagebox.showinfo("Modele cree",
-                    f"Le modele d'import a ete cree.\n\n"
+                    f"Le modele d'import a ete cree avec succes!\n\n"
+                    f"Fichier: {filepath}\n\n"
                     f"Colonnes du fichier:\n"
                     f"- CATEGORIE: Categorie du produit (obligatoire)\n"
                     f"- SOUS-CATEGORIE: Sous-categorie (optionnel)\n"
@@ -782,23 +899,39 @@ class MainWindow:
                     f"- CHANTIER: Nom du chantier/projet (optionnel)\n"
                     f"- FICHE_TECHNIQUE: Chemin du fichier PDF (optionnel)")
             except Exception as e:
+                print(f"[DEBUG] ERREUR: {e}")
+                import traceback
+                traceback.print_exc()
                 messagebox.showerror("Erreur", f"Erreur:\n{e}")
+        else:
+            print("[DEBUG] Aucun fichier sélectionné (annulé)")
 
     def on_export(self):
         """Exporte tous les produits"""
+        print("[DEBUG] on_export() appelée")
         filepath = filedialog.asksaveasfilename(
             title="Exporter CSV",
             defaultextension=".csv",
             filetypes=[("Fichiers CSV", "*.csv")],
-            initialfilename=f"catalogue_{datetime.now().strftime('%Y%m%d')}.csv"
+            initialfile=f"catalogue_{datetime.now().strftime('%Y%m%d')}.csv"
         )
+        print(f"[DEBUG] Fichier sélectionné: {filepath}")
         if filepath:
             try:
+                print("[DEBUG] Appel de export_csv()")
                 count = self.db.export_csv(filepath)
-                messagebox.showinfo("Export termine", f"{count} produit(s) exporte(s)")
+                print(f"[DEBUG] Export réussi: {count} produits")
+                messagebox.showinfo("Export termine",
+                    f"{count} produit(s) exporte(s) avec succes!\n\n"
+                    f"Fichier: {filepath}")
                 self.set_status(f"Export: {count} produits")
             except Exception as e:
+                print(f"[DEBUG] ERREUR: {e}")
+                import traceback
+                traceback.print_exc()
                 messagebox.showerror("Erreur", f"Erreur d'export:\n{e}")
+        else:
+            print("[DEBUG] Aucun fichier sélectionné (annulé)")
 
     def on_settings(self):
         """Ouvre les parametres"""
@@ -842,8 +975,8 @@ Prix max: {stats['prix_max']:.2f} EUR
 
         # Identifier la colonne
         column = self.tree.identify_column(event.x)
-        # La colonne pdf est la 10eme (#10)
-        if column == '#10':
+        # La colonne pdf est la 12eme (#12)
+        if column == '#12':
             item = self.tree.identify_row(event.y)
             if item:
                 self.tree.selection_set(item)
@@ -854,7 +987,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         # Identifier la colonne
         column = self.tree.identify_column(event.x)
         # Si c'est la colonne PDF, ne pas ouvrir l'edition
-        if column == '#10':
+        if column == '#12':
             return
         self.on_edit()
 

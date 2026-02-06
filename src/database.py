@@ -248,6 +248,50 @@ class Database:
         cursor.execute(f"SELECT DISTINCT {field} FROM produits WHERE {field} IS NOT NULL AND {field} != '' ORDER BY {field}")
         return [row[field] for row in cursor.fetchall()]
 
+    def get_subcategories_filtered(self, level: int = 1, categorie: str = None,
+                                   sous_categorie: str = None, sous_categorie_2: str = None) -> List[str]:
+        """
+        Recupere les sous-categories avec filtrage en cascade
+
+        Args:
+            level: Niveau de sous-categorie a recuperer (1, 2 ou 3)
+            categorie: Filtrer par categorie principale
+            sous_categorie: Filtrer par sous-categorie niveau 1 (pour level >= 2)
+            sous_categorie_2: Filtrer par sous-categorie niveau 2 (pour level == 3)
+
+        Returns:
+            Liste des sous-categories distinctes triees
+        """
+        cursor = self.conn.cursor()
+
+        if level == 1:
+            field = 'sous_categorie'
+        elif level == 2:
+            field = 'sous_categorie_2'
+        elif level == 3:
+            field = 'sous_categorie_3'
+        else:
+            return []
+
+        query = f"SELECT DISTINCT {field} FROM produits WHERE {field} IS NOT NULL AND {field} != '' AND actif = 1"
+        params = []
+
+        if categorie and categorie not in ("Toutes", ""):
+            query += " AND categorie = ?"
+            params.append(categorie)
+
+        if level >= 2 and sous_categorie and sous_categorie not in ("Toutes", ""):
+            query += " AND sous_categorie = ?"
+            params.append(sous_categorie)
+
+        if level == 3 and sous_categorie_2 and sous_categorie_2 not in ("Toutes", ""):
+            query += " AND sous_categorie_2 = ?"
+            params.append(sous_categorie_2)
+
+        query += f" ORDER BY {field}"
+        cursor.execute(query, params)
+        return [row[field] for row in cursor.fetchall()]
+
     def add_categorie(self, nom: str, description: str = None, couleur: str = '#1F4E79'):
         """Ajoute une categorie"""
         cursor = self.conn.cursor()

@@ -1,14 +1,18 @@
 # DestriChiffrage
 
+**Version 1.0.5**
+
 Application de gestion de catalogue et de chiffrage de portes.
 
 ## Fonctionnalites
 
 - **Recherche instantanee** : Recherche par mot-cle dans les designations, dimensions, references
-- **Filtrage avance** : Par categorie, sous-categorie (3 niveaux), hauteur et largeur
+- **Filtrage avance en cascade** : Par categorie et 3 niveaux de sous-categories, hauteur et largeur
+  - Les filtres de sous-categories sont mis a jour automatiquement selon les selections precedentes
+  - La selection est preservee lors du rafraichissement si elle existe toujours
 - **Calcul automatique des prix de vente** : Marge personnalisable (defaut 20%)
 - **Gestion des produits** : Ajout, modification, suppression avec formulaires intuitifs
-- **Panier d'export** 🛒 : Selection multiple d'articles pour export groupe avec PDFs
+- **Panier d'export** : Selection multiple d'articles pour export groupe avec PDFs
 - **Import/Export CSV** : Compatible avec Excel, encodage UTF-8 avec BOM
 - **Gestion des documents** : Association de fiches techniques et devis fournisseur (PDF)
 - **Copier-coller** : Copie rapide des designations, prix et references
@@ -69,7 +73,7 @@ python src/main.py
 ### Importer des donnees existantes
 1. Cliquer sur "Importer CSV"
 2. Selectionner un fichier CSV avec les colonnes:
-   - CATEGORIE, SOUS-CATEGORIE, DESIGNATION, DIMENSIONS, PRIX_UNITAIRE_HT, ARTICLE, CHANTIER
+   - CATEGORIE, SOUS-CATEGORIE, SOUS-CATEGORIE 2, SOUS-CATEGORIE 3, DESIGNATION, HAUTEUR, LARGEUR, PRIX_UNITAIRE_HT, ARTICLE, FOURNISSEUR, CHANTIER, FICHE_TECHNIQUE, FICHIER_PDF
 
 ### Rechercher un produit
 1. Taper dans le champ "Rechercher"

@@ -1,0 +1,6 @@
+﻿CODE;NIVEAU;DESIGNATION;CATEGORIE;LARGEUR_MM;HAUTEUR_MM;CARACTERISTIQUES;UNITE;QUANTITE;LOCALISATION;NOTES
+1.;2;BLOCS-PORTES (exemple chapitre);PORTES;;;;;;;Supprimer ces lignes d'exemple avant import
+1.1;4;BP âme pleine EI30 (exemple article);PORTES;930;2040;EI30, à peindre;U;5;RDC Hall;Voir CCTP p.15
+1.2;4;BP acoustique RA=35dB (exemple);PORTES;930;2040;EI30, RA=35dB, stratifié chêne;U;3;R+1 Couloir;
+2.;2;AGENCEMENT (exemple chapitre);AGENCEMENT;;;;;;;
+2.1;4;Kitchenette type A (exemple);AGENCEMENT;;;;ENS;2;RDC Salle repos;Voir détail CCTP p.22

@@ -5,7 +5,7 @@
 ; Informations de base
 AppId={{C8F42A3E-5E4D-4B2C-9A8E-1D2F3C4B5A6E}
 AppName=DestriChiffrage
-AppVersion=1.0.1
+AppVersion=1.0.5
 AppPublisher=Destribois
 AppPublisherURL=https://github.com/florentdestribois/DestriChiffrage
 AppSupportURL=https://github.com/florentdestribois/DestriChiffrage
@@ -15,7 +15,7 @@ DefaultGroupName=DestriChiffrage
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
-OutputBaseFilename=DestriChiffrage-Setup-1.0.1
+OutputBaseFilename=DestriChiffrage-Setup-1.0.5
 SetupIconFile=assets\icon.ico
 Compression=lzma
 SolidCompression=yes
@@ -40,7 +40,8 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 Source: "dist\DestriChiffrage.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Fichiers de support (si présents dans dist\)
-Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data"
+; IMPORTANT: On exclut data ET config pour préserver les données utilisateur lors des mises à jour
+Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data,config"
 
 [Dirs]
 ; Créer les dossiers data

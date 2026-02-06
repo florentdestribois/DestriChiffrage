@@ -25,6 +25,8 @@ Si une version est fournie en argument, utilise-la. Sinon :
    - `AppVersion=X.Y.Z`
    - `OutputBaseFilename=DestriChiffrage-Setup-X.Y.Z`
 
+**Note** : La boîte de dialogue "À propos" (`AboutDialog` dans `src/ui/dialogs.py`) importe automatiquement `__version__` depuis `src/version.py`, donc pas besoin de la modifier manuellement.
+
 ### 3. Compiler l'application
 
 ```bash

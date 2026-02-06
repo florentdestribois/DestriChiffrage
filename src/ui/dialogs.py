@@ -12,6 +12,7 @@ import subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from ui.theme import Theme
+from version import __version__
 
 
 class ProductDialog:
@@ -926,7 +927,7 @@ class AboutDialog:
                                highlightbackground=Theme.COLORS['border'], highlightthickness=1)
         content_card.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(content_card, text="Version 1.0.0", font=Theme.FONTS['body_bold'],
+        tk.Label(content_card, text=f"Version {__version__}", font=Theme.FONTS['body_bold'],
                 bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text']).pack(pady=(0, 16))
 
         tk.Label(content_card, text="Application de gestion de catalogue\net de calcul de prix de vente.",
