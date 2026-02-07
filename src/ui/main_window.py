@@ -50,6 +50,7 @@ class MainWindow:
         self.subcategory3_var = tk.StringVar(value="Toutes")
         self.hauteur_var = tk.StringVar(value="Toutes")
         self.largeur_var = tk.StringVar(value="Toutes")
+        self.fournisseur_var = tk.StringVar(value="Tous")
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
 
         # Charger les icones PDF, Devis et Devis rapide
@@ -83,7 +84,7 @@ class MainWindow:
         """Charge l'icone PDF"""
         if HAS_PIL:
             try:
-                icon_path = get_resource_path('src/assets/pdf.png')
+                icon_path = get_resource_path('assets/pdf.png')
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
                     # Redimensionner l'icone pour qu'elle tienne dans la cellule
@@ -96,7 +97,7 @@ class MainWindow:
         """Charge l'icone Devis (identique au PDF)"""
         if HAS_PIL:
             try:
-                icon_path = get_resource_path('src/assets/pdf.png')
+                icon_path = get_resource_path('assets/pdf.png')
                 if os.path.exists(icon_path):
                     img = Image.open(icon_path)
                     # Redimensionner l'icone pour qu'elle tienne dans la cellule
@@ -190,7 +191,7 @@ class MainWindow:
         self.logo_image = None
         if HAS_PIL:
             try:
-                logo_path = get_resource_path('src/assets/logo.png')
+                logo_path = get_resource_path('assets/logo.png')
                 if os.path.exists(logo_path):
                     img = Image.open(logo_path)
                     img = img.resize((44, 44), Image.Resampling.LANCZOS)
@@ -414,6 +415,20 @@ class MainWindow:
         self.largeur_combo.pack(pady=(2, 0))
         self.largeur_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
 
+        # Filtre fournisseur
+        fournisseur_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
+        fournisseur_frame.pack(side=tk.LEFT, padx=(0, 24))
+
+        tk.Label(fournisseur_frame, text="Fournisseur",
+                font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.fournisseur_combo = ttk.Combobox(fournisseur_frame, textvariable=self.fournisseur_var,
+                                              width=14, state='readonly',
+                                              font=Theme.FONTS['body'])
+        self.fournisseur_combo.pack(pady=(2, 0))
+        self.fournisseur_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
+
         # Bouton effacer
         clear_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
         clear_frame.pack(side=tk.LEFT, pady=(12, 0))
@@ -439,7 +454,7 @@ class MainWindow:
         # Colonnes du tableau
         columns = ('id', 'categorie', 'sous_categorie', 'sous_categorie_2', 'sous_categorie_3',
                   'designation', 'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference',
-                  'pdf', 'devis', 'cart')
+                  'fournisseur', 'pdf', 'devis', 'cart')
 
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings',
                                 selectmode='browse')
@@ -457,6 +472,7 @@ class MainWindow:
             'prix_achat': ('Achat HT', 80, 'e'),
             'prix_vente': ('Vente HT', 80, 'e'),
             'reference': ('Ref.', 70, 'center'),
+            'fournisseur': ('Fournisseur', 100, 'w'),
             'pdf': ('Fiche', 50, 'center'),
             'devis': ('Devis', 50, 'center'),
             'cart': ('Devis', 50, 'center'),
@@ -573,9 +589,10 @@ class MainWindow:
         # Mettre a jour les sous-categories (avec preservation des selections)
         self.update_subcategories(preserve_selection=True)
 
-        # Mettre a jour les hauteurs et largeurs
+        # Mettre a jour les hauteurs, largeurs et fournisseurs
         self.update_hauteurs()
         self.update_largeurs()
+        self.update_fournisseurs()
 
         # Mettre a jour la marge
         self.marge_var.set(str(self.db.get_marge()))
@@ -689,6 +706,12 @@ class MainWindow:
         self.largeur_combo['values'] = ['Toutes'] + [str(l) for l in largeurs]
         self.largeur_var.set('Toutes')
 
+    def update_fournisseurs(self):
+        """Met a jour la liste des fournisseurs disponibles"""
+        fournisseurs = self.db.get_fournisseurs_distincts()
+        self.fournisseur_combo['values'] = ['Tous'] + fournisseurs
+        self.fournisseur_var.set('Tous')
+
     def on_hauteur_change(self, event=None):
         """Callback quand la hauteur change"""
         self.update_largeurs()
@@ -722,6 +745,11 @@ class MainWindow:
         # Filtre par sous-categorie niveau 3
         if subcategorie3 and subcategorie3 != "Toutes":
             produits = [p for p in produits if p.get('sous_categorie_3') == subcategorie3]
+
+        # Filtre par fournisseur
+        fournisseur = self.fournisseur_var.get()
+        if fournisseur and fournisseur != "Tous":
+            produits = [p for p in produits if p.get('fournisseur') == fournisseur]
 
         try:
             valeur_marge = self.marge_var.get().replace(',', '.').replace('%', '').strip()
@@ -763,6 +791,7 @@ class MainWindow:
                 f"{p['prix_achat']:.2f} EUR",
                 f"{prix_vente:.2f} EUR",
                 p['reference'] or '-',
+                p.get('fournisseur') or '-',
                 '',  # Colonne pdf : vide, icone affichee via overlay
                 '',  # Colonne devis : vide, icone affichee via overlay
                 ''   # Colonne cart : vide, icone affichee via overlay
@@ -787,9 +816,11 @@ class MainWindow:
         self.subcategory3_var.set("Toutes")
         self.hauteur_var.set("Toutes")
         self.largeur_var.set("Toutes")
+        self.fournisseur_var.set("Tous")
         self.update_subcategories()
         self.update_hauteurs()
         self.update_largeurs()
+        self.update_fournisseurs()
 
     def on_apply_marge(self):
         """Applique la nouvelle marge"""

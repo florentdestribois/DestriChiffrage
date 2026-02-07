@@ -667,6 +667,15 @@ class Database:
         cursor.execute(query, params)
         return [row['largeur'] for row in cursor.fetchall()]
 
+    def get_fournisseurs_distincts(self) -> List[str]:
+        """Recupere les fournisseurs distincts"""
+        cursor = self.conn.cursor()
+        query = """SELECT DISTINCT fournisseur FROM produits
+                   WHERE actif=1 AND fournisseur IS NOT NULL AND fournisseur != ''
+                   ORDER BY fournisseur"""
+        cursor.execute(query)
+        return [row['fournisseur'] for row in cursor.fetchall()]
+
     def get_produit(self, id: int) -> Optional[Dict]:
         """Recupere un produit par son ID"""
         cursor = self.conn.cursor()
