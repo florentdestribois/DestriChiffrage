@@ -1,10 +1,14 @@
 # DestriChiffrage
 
-**Version 1.3.4**
+**Version 1.5.0**
 
 Application de gestion de catalogue et de chiffrage de portes avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Navigation rapide (v1.5.0)
+- **Menu Vente dans le header** : Menu deroulant avec acces direct a l'analyse des ventes et la creation de chantiers
+- **Ergonomie amelioree** : Reduction du nombre de clics pour acceder aux fonctionnalites principales
 
 ### Catalogue de produits
 - **Recherche instantanee** : Recherche par mot-cle dans les designations, dimensions, references
@@ -13,7 +17,7 @@ Application de gestion de catalogue et de chiffrage de portes avec module Marche
   - La selection est preservee lors du rafraichissement si elle existe toujours
 - **Calcul automatique des prix de vente** : Marge personnalisable (defaut 20%)
 - **Gestion des produits** : Ajout, modification, suppression avec formulaires intuitifs
-- **Panier d'export** : Selection multiple d'articles pour export groupe avec PDFs
+- **Devis rapide** : Selection multiple d'articles pour export groupe avec PDFs
 - **Import/Export CSV** : Compatible avec Excel, encodage UTF-8 avec BOM
 - **Gestion des documents** : Association de fiches techniques et devis fournisseur (PDF)
 - **Copier-coller** : Copie rapide des designations, prix et references
@@ -29,6 +33,7 @@ Application de gestion de catalogue et de chiffrage de portes avec module Marche
 - **Import article depuis catalogue (v1.3.3)** : Creation rapide d'un article DPGF a partir d'un produit du catalogue avec liaison automatique
 - **Chiffrage multi-produits** : Associer plusieurs produits du catalogue a chaque article DPGF
 - **Description article (v1.3.0)** : Description detaillee pour chaque article DPGF
+- **Presentation article (v1.4.0)** : Champ optionnel exporte sur ligne 2 dans Odoo
 - **TVA par article (v1.3.0)** : Taux de TVA configurable (0%, 5.5%, 10%, 20%)
 - **Calcul des couts detailles (v1.2.0)** :
   - Cout entreprise et Prix de vente separes pour la main d'oeuvre
@@ -51,15 +56,15 @@ DestriChiffrage/
 ├── src/
 │   ├── main.py                # Point d'entree
 │   ├── database.py            # Gestion base de donnees & exports
-│   ├── cart_manager.py        # Gestionnaire de panier
+│   ├── cart_manager.py        # Gestionnaire de devis rapide
 │   ├── config.py              # Configuration
 │   └── ui/
 │       ├── __init__.py
 │       ├── theme.py           # Styles et couleurs
 │       ├── main_window.py     # Fenetre principale
 │       ├── dialogs.py         # Boites de dialogue
-│       ├── cart_panel.py      # Interface panier
-│       ├── cart_export_dialog.py  # Dialogue d'export panier
+│       ├── cart_panel.py      # Interface devis rapide
+│       ├── cart_export_dialog.py  # Dialogue d'export devis rapide
 │       ├── dpgf_import_dialog.py     # Import DPGF (v1.3.0)
 │       ├── dpgf_chiffrage_view.py    # Vue chiffrage DPGF (v1.3.0)
 │       ├── dpgf_export_dialog.py     # Export DPGF (v1.3.0)
@@ -113,24 +118,26 @@ python src/main.py
 ### Rechercher un produit
 1. Taper dans le champ "Rechercher"
 2. Ou selectionner une categorie dans la liste deroulante
-3. Les resultats s'affichent instantanement
+3. **Filtrer par sous-categories (v1.4.0)** : 3 niveaux de sous-categories en cascade
+4. **Creer un produit (v1.4.0)** : Bouton pour creer un nouveau produit directement depuis la recherche
+5. Les resultats s'affichent instantanement
 
 ### Modifier la marge
 1. Modifier la valeur dans le champ "Marge" en haut a droite
 2. Cliquer sur "Appliquer"
 3. Tous les prix de vente sont recalcules
 
-### Utiliser le panier d'export
-1. Cliquer sur l'icone "+" dans la colonne Panier pour ajouter un article
-2. L'icone devient un checkmark et le compteur du bouton Panier s'incremente
-3. Cliquer sur le bouton "Panier (X)" pour voir les articles selectionnes
-4. Dans le panneau panier :
+### Utiliser le devis rapide
+1. Cliquer sur l'icone "+" dans la colonne Devis pour ajouter un article
+2. L'icone devient un checkmark et le compteur du bouton Devis rapide s'incremente
+3. Cliquer sur le bouton "Devis rapide (X)" pour voir les articles selectionnes
+4. Dans le panneau devis rapide :
    - Double-clic sur un article pour le retirer
-   - "Vider le panier" pour tout supprimer
+   - "Vider le devis" pour tout supprimer
    - "Exporter" pour lancer l'export groupe
 
-### Exporter le panier
-1. Depuis le panneau panier, cliquer sur "Exporter"
+### Exporter le devis rapide
+1. Depuis le panneau devis rapide, cliquer sur "Exporter"
 2. Choisir le fichier CSV de destination
 3. Choisir le dossier pour les PDFs (optionnel)
 4. Cocher les options :
@@ -143,6 +150,14 @@ python src/main.py
 ### Exporter tout / selection
 - **Exporter tout** : Exporte tous les produits du catalogue
 - **Exporter selection** : Exporte uniquement les produits affiches (apres filtre/recherche)
+
+### Vider la base de donnees (v1.4.1)
+1. Menu "Edition" > "Vider la base de donnees..."
+2. Options disponibles :
+   - **Supprimer les categories** : Optionnel, supprime aussi les categories
+   - **Supprimer les chantiers** : Coche par defaut, supprime tous les chantiers et marches
+3. Les IDs sont reinitialises (AUTOINCREMENT remis a zero)
+4. **Les parametres sont conserves** : marge, taux horaires, etc.
 
 ### Utiliser le module Marches Publics
 
@@ -206,7 +221,9 @@ Nom du client;Article 1; ;12;70.00;20% Ser;REF123
 ;;Description de l'article 2;;;;
 ```
 
-**Note (v1.3.4)** : La colonne `order_line/name` contient un espace sur les lignes produit pour permettre a Odoo de differencier les lignes produit des lignes description.
+**Note (v1.4.0)** :
+- La description est maintenant sur la meme ligne que l'article (plus d'espace)
+- Si un champ "Presentation" est renseigne dans l'article, il est exporte sur une seconde ligne
 
 #### Analyser les marches (v1.3.0)
 1. Menu "Marches" > "Analyse des marches"
@@ -268,7 +285,7 @@ Documentation complete disponible dans le dossier [`docs/`](docs/)
 
 - **[Guide de Build](docs/BUILD.md)** - Compilation et creation de l'installateur
 - **[Systeme de Mise a Jour](docs/AUTO_UPDATE.md)** - Auto-updater et publication de versions
-- **[Implementation Panier](docs/IMPLEMENTATION_PANIER.md)** - Architecture du systeme de panier
+- **[Implementation Devis rapide](docs/IMPLEMENTATION_PANIER.md)** - Architecture du systeme de devis rapide
 - **[Implementation Installateur](docs/IMPLEMENTATION_EXE.md)** - Infrastructure de build .exe
 - **[Rapport de Tests](docs/RAPPORT_TESTS_BUILD.md)** - Resultats des tests de build
 

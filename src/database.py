@@ -136,6 +136,12 @@ class Database:
         except:
             pass
 
+        # Migration v1.3.5: ajouter colonne presentation dans prix_marche
+        try:
+            cursor.execute("ALTER TABLE prix_marche ADD COLUMN presentation TEXT")
+        except:
+            pass
+
         # Table des categories
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS categories (
@@ -199,6 +205,7 @@ class Database:
                 niveau INTEGER DEFAULT 4,
                 designation TEXT NOT NULL,
                 description TEXT,
+                presentation TEXT,
                 categorie TEXT,
                 largeur_mm INTEGER,
                 hauteur_mm INTEGER,
@@ -249,6 +256,16 @@ class Database:
                 FOREIGN KEY (parent_id) REFERENCES dpgf_structure(id)
             )
         ''')
+
+        # Index pour optimiser les recherches (milliers de produits/chantiers)
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_categorie ON produits(categorie)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_sous_categorie ON produits(sous_categorie)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_designation ON produits(designation)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_chantiers_resultat ON chantiers(resultat)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_chantiers_type_marche ON chantiers(type_marche)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_prix_marche_chantier ON prix_marche(chantier_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_article_produits_prix_marche ON article_produits(prix_marche_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_article_produits_produit ON article_produits(produit_id)')
 
         # Parametres par defaut
         default_data_dir = os.path.normpath(os.path.abspath(
@@ -501,7 +518,9 @@ class Database:
     # ==================== PRODUITS ====================
 
     def search_produits(self, terme: str = "", categorie: str = "", actif_only: bool = True,
-                        hauteur: int = None, largeur: int = None) -> List[Dict]:
+                        hauteur: int = None, largeur: int = None,
+                        sous_categorie: str = "", sous_categorie_2: str = "",
+                        sous_categorie_3: str = "") -> List[Dict]:
         """
         Recherche des produits
 
@@ -511,6 +530,9 @@ class Database:
             actif_only: Ne retourner que les produits actifs
             hauteur: Filtrer par hauteur exacte
             largeur: Filtrer par largeur exacte
+            sous_categorie: Filtrer par sous-categorie 1
+            sous_categorie_2: Filtrer par sous-categorie 2
+            sous_categorie_3: Filtrer par sous-categorie 3
 
         Returns:
             Liste des produits correspondants
@@ -531,6 +553,18 @@ class Database:
             query += " AND categorie = ?"
             params.append(categorie)
 
+        if sous_categorie and sous_categorie not in ("Toutes", ""):
+            query += " AND sous_categorie = ?"
+            params.append(sous_categorie)
+
+        if sous_categorie_2 and sous_categorie_2 not in ("Toutes", ""):
+            query += " AND sous_categorie_2 = ?"
+            params.append(sous_categorie_2)
+
+        if sous_categorie_3 and sous_categorie_3 not in ("Toutes", ""):
+            query += " AND sous_categorie_3 = ?"
+            params.append(sous_categorie_3)
+
         if hauteur:
             query += " AND hauteur = ?"
             params.append(hauteur)
@@ -542,6 +576,55 @@ class Database:
         query += " ORDER BY categorie, sous_categorie, designation"
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+    def get_sous_categories(self, categorie: str = None) -> List[str]:
+        """Recupere les sous-categories distinctes"""
+        cursor = self.conn.cursor()
+        if categorie and categorie not in ("Toutes", ""):
+            cursor.execute("""SELECT DISTINCT sous_categorie FROM produits
+                             WHERE actif=1 AND sous_categorie IS NOT NULL AND sous_categorie != ''
+                             AND categorie=? ORDER BY sous_categorie""", (categorie,))
+        else:
+            cursor.execute("""SELECT DISTINCT sous_categorie FROM produits
+                             WHERE actif=1 AND sous_categorie IS NOT NULL AND sous_categorie != ''
+                             ORDER BY sous_categorie""")
+        return [row['sous_categorie'] for row in cursor.fetchall()]
+
+    def get_sous_categories_2(self, categorie: str = None, sous_categorie: str = None) -> List[str]:
+        """Recupere les sous-categories 2 distinctes"""
+        cursor = self.conn.cursor()
+        query = """SELECT DISTINCT sous_categorie_2 FROM produits
+                   WHERE actif=1 AND sous_categorie_2 IS NOT NULL AND sous_categorie_2 != ''"""
+        params = []
+        if categorie and categorie not in ("Toutes", ""):
+            query += " AND categorie=?"
+            params.append(categorie)
+        if sous_categorie and sous_categorie not in ("Toutes", ""):
+            query += " AND sous_categorie=?"
+            params.append(sous_categorie)
+        query += " ORDER BY sous_categorie_2"
+        cursor.execute(query, params)
+        return [row['sous_categorie_2'] for row in cursor.fetchall()]
+
+    def get_sous_categories_3(self, categorie: str = None, sous_categorie: str = None,
+                              sous_categorie_2: str = None) -> List[str]:
+        """Recupere les sous-categories 3 distinctes"""
+        cursor = self.conn.cursor()
+        query = """SELECT DISTINCT sous_categorie_3 FROM produits
+                   WHERE actif=1 AND sous_categorie_3 IS NOT NULL AND sous_categorie_3 != ''"""
+        params = []
+        if categorie and categorie not in ("Toutes", ""):
+            query += " AND categorie=?"
+            params.append(categorie)
+        if sous_categorie and sous_categorie not in ("Toutes", ""):
+            query += " AND sous_categorie=?"
+            params.append(sous_categorie)
+        if sous_categorie_2 and sous_categorie_2 not in ("Toutes", ""):
+            query += " AND sous_categorie_2=?"
+            params.append(sous_categorie_2)
+        query += " ORDER BY sous_categorie_3"
+        cursor.execute(query, params)
+        return [row['sous_categorie_3'] for row in cursor.fetchall()]
 
     def get_hauteurs_distinctes(self, categorie: str = None) -> List[int]:
         """Recupere les hauteurs distinctes"""
@@ -720,15 +803,47 @@ class Database:
     def clear_all_produits(self, clear_categories: bool = False):
         """
         Supprime TOUS les produits de la base de donnees
+        DEPRECATED: Utiliser clear_all_data() a la place
 
         Args:
             clear_categories: Si True, supprime aussi toutes les categories
         """
+        self.clear_all_data(clear_categories=clear_categories, clear_chantiers=False)
+
+    def clear_all_data(self, clear_categories: bool = False, clear_chantiers: bool = True):
+        """
+        Supprime TOUTES les donnees de la base (produits, chantiers, etc.)
+        Ne touche PAS a la table parametres
+
+        Args:
+            clear_categories: Si True, supprime aussi toutes les categories
+            clear_chantiers: Si True, supprime aussi tous les chantiers et donnees associees
+        """
         cursor = self.conn.cursor()
+
+        # Supprimer les produits et historique
         cursor.execute("DELETE FROM produits")
         cursor.execute("DELETE FROM historique_prix")
+
+        # Tables a reinitialiser (IDs)
+        tables_to_reset = ['produits', 'historique_prix']
+
         if clear_categories:
             cursor.execute("DELETE FROM categories")
+            tables_to_reset.append('categories')
+
+        if clear_chantiers:
+            # Supprimer dans l'ordre correct (contraintes FK)
+            cursor.execute("DELETE FROM article_produits")
+            cursor.execute("DELETE FROM prix_marche")
+            cursor.execute("DELETE FROM dpgf_structure")
+            cursor.execute("DELETE FROM chantiers")
+            tables_to_reset.extend(['article_produits', 'prix_marche', 'dpgf_structure', 'chantiers'])
+
+        # Reinitialiser les sequences AUTOINCREMENT
+        for table in tables_to_reset:
+            cursor.execute("DELETE FROM sqlite_sequence WHERE name = ?", (table,))
+
         self.conn.commit()
 
     # ==================== IMPORT / EXPORT ====================
@@ -1283,17 +1398,18 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute('''
             INSERT INTO prix_marche (
-                chantier_id, code, niveau, designation, description, categorie,
+                chantier_id, code, niveau, designation, description, presentation, categorie,
                 largeur_mm, hauteur_mm, caracteristiques, unite,
                 quantite, localisation, notes, marge_pct, taux_tva,
                 temps_conception, temps_fabrication, temps_pose
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             chantier_id,
             data.get('code', ''),
             data.get('niveau', 4),
             data.get('designation', ''),
             data.get('description', ''),
+            data.get('presentation', ''),
             data.get('categorie', ''),
             data.get('largeur_mm'),
             data.get('hauteur_mm'),
@@ -1319,7 +1435,7 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute('''
             UPDATE prix_marche SET
-                code = ?, designation = ?, description = ?, categorie = ?,
+                code = ?, designation = ?, description = ?, presentation = ?, categorie = ?,
                 largeur_mm = ?, hauteur_mm = ?, caracteristiques = ?,
                 unite = ?, quantite = ?, localisation = ?, notes = ?,
                 temps_conception = ?, temps_fabrication = ?, temps_pose = ?,
@@ -1329,6 +1445,7 @@ class Database:
             data.get('code', ''),
             data.get('designation', ''),
             data.get('description', ''),
+            data.get('presentation', ''),
             data.get('categorie', ''),
             data.get('largeur_mm'),
             data.get('hauteur_mm'),
@@ -1745,28 +1862,32 @@ class Database:
                 else:
                     tva_str = f"{taux_tva}% Ser"
 
-                # Ligne article
+                # Recuperer description et presentation
+                description = article.get('description', '') or ''
+                presentation = article.get('presentation', '') or ''
+
+                # Ligne article avec description directement dans order_line/name
                 writer.writerow([
                     nom_client if first_article else '',
                     article.get('designation', ''),
-                    ' ',  # Espace - Description sur la ligne suivante
+                    description,  # Description sur la meme ligne
                     article.get('quantite', 1),
                     f"{article.get('prix_unitaire_ht', 0):.2f}",
                     tva_str,
                     reference if first_article else ''
                 ])
 
-                # Ligne description
-                description = article.get('description', '') or ''
-                writer.writerow([
-                    '',
-                    '',
-                    description,
-                    '',
-                    '',
-                    '',
-                    ''
-                ])
+                # Ligne presentation (seulement si renseignee)
+                if presentation:
+                    writer.writerow([
+                        '',
+                        '',
+                        presentation,
+                        '',
+                        '',
+                        '',
+                        ''
+                    ])
 
                 first_article = False
 

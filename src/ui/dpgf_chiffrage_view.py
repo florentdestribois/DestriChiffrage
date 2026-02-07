@@ -31,15 +31,18 @@ class DPGFChiffrageView:
 
         self.window = tk.Toplevel(parent)
         self.window.title(f"Chiffrage DPGF - {self.chantier.get('nom', 'Chantier')}")
-        self.window.geometry("1400x800")
-        self.window.minsize(1200, 700)
+
+        # Ouvrir sur toute la hauteur de l'ecran
+        screen_height = self.window.winfo_screenheight()
+        window_height = screen_height - 80  # Marge pour la barre des taches
+        self.window.geometry(f"1400x{window_height}")
+        self.window.minsize(1200, 800)
         self.window.configure(bg=Theme.COLORS['bg'])
 
-        # Centrer
+        # Centrer horizontalement, en haut de l'ecran
         self.window.update_idletasks()
         x = (self.window.winfo_screenwidth() - 1400) // 2
-        y = (self.window.winfo_screenheight() - 800) // 2
-        self.window.geometry(f"+{x}+{y}")
+        self.window.geometry(f"+{x}+0")
 
         # Fermeture
         self.window.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -121,6 +124,13 @@ class DPGFChiffrageView:
                  bd=0, padx=12, pady=4, cursor='hand2',
                  command=self._import_dpgf).pack(side=tk.RIGHT, padx=(0, 8))
 
+        tk.Button(articles_header, text="Supprimer",
+                 font=Theme.FONTS['small'],
+                 bg=Theme.COLORS['danger'],
+                 fg=Theme.COLORS['white'],
+                 bd=0, padx=12, pady=4, cursor='hand2',
+                 command=self._delete_article).pack(side=tk.RIGHT, padx=(0, 8))
+
         # Tableau articles
         table_frame = tk.Frame(left_frame, bg=Theme.COLORS['bg_alt'],
                               highlightbackground=Theme.COLORS['border'], highlightthickness=1)
@@ -153,6 +163,26 @@ class DPGFChiffrageView:
         # Selection
         self.articles_tree.bind('<<TreeviewSelect>>', self._on_article_select)
         self.articles_tree.bind('<Delete>', lambda e: self._delete_article())
+        self.articles_tree.bind('<Button-3>', self._show_article_context_menu)
+
+        # Menu contextuel pour les articles
+        self.article_context_menu = tk.Menu(self.articles_tree, tearoff=0)
+        self.article_context_menu.add_command(label="Copier la designation",
+                                              command=self._copy_article_designation)
+        self.article_context_menu.add_command(label="Copier le code",
+                                              command=self._copy_article_code)
+        self.article_context_menu.add_command(label="Copier toutes les infos",
+                                              command=self._copy_article_all)
+        self.article_context_menu.add_separator()
+        self.article_context_menu.add_command(label="Ouvrir la fiche technique",
+                                              command=self._open_article_fiche)
+        self.article_context_menu.add_command(label="Ouvrir le devis fournisseur",
+                                              command=self._open_article_devis)
+        self.article_context_menu.add_separator()
+        self.article_context_menu.add_command(label="Modifier l'article",
+                                              command=self._edit_article)
+        self.article_context_menu.add_command(label="Supprimer l'article",
+                                              command=self._delete_article)
 
         # Colonne droite - Detail article
         right_frame = tk.Frame(self.paned, bg=Theme.COLORS['bg'])
@@ -231,13 +261,27 @@ class DPGFChiffrageView:
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w')
 
-        self.description_text = tk.Text(self.detail_content, width=40, height=3,
+        self.description_text = tk.Text(self.detail_content, width=40, height=6,
                                         font=Theme.FONTS['body'],
                                         bg=Theme.COLORS['bg'],
                                         fg=Theme.COLORS['text'],
                                         bd=1, relief='solid', wrap='word')
         self.description_text.pack(anchor='w', fill=tk.X, pady=(0, 12))
         self.description_text.bind('<FocusOut>', lambda e: self._save_description())
+
+        # Presentation (pour export Odoo - ligne 2)
+        tk.Label(self.detail_content, text="Presentation (export Odoo ligne 2)",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.presentation_text = tk.Text(self.detail_content, width=40, height=3,
+                                         font=Theme.FONTS['body'],
+                                         bg=Theme.COLORS['bg'],
+                                         fg=Theme.COLORS['text'],
+                                         bd=1, relief='solid', wrap='word')
+        self.presentation_text.pack(anchor='w', fill=tk.X, pady=(0, 12))
+        self.presentation_text.bind('<FocusOut>', lambda e: self._save_presentation())
 
         # Infos article
         info_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
@@ -475,6 +519,10 @@ class DPGFChiffrageView:
         self.description_text.delete('1.0', tk.END)
         self.description_text.insert('1.0', article.get('description', '') or '')
 
+        # Presentation
+        self.presentation_text.delete('1.0', tk.END)
+        self.presentation_text.insert('1.0', article.get('presentation', '') or '')
+
         # Temps MO
         self.mo_entries['conception'].delete(0, tk.END)
         self.mo_entries['conception'].insert(0, str(article['temps_conception']))
@@ -572,16 +620,130 @@ class DPGFChiffrageView:
         if not selection:
             return
 
-        if messagebox.askyesno("Confirmer", "Supprimer cet article ?"):
+        item = self.articles_tree.item(selection[0])
+        article_id = item['values'][0]
+        self.db.delete_article_dpgf(article_id)
+        self.current_article_id = None
+        self._load_articles()
+
+        # Masquer le detail
+        self.detail_content.pack_forget()
+        self.no_selection_label.pack(expand=True)
+
+    def _show_article_context_menu(self, event):
+        """Affiche le menu contextuel pour un article"""
+        # Selectionner l'item sous le curseur
+        item = self.articles_tree.identify_row(event.y)
+        if item:
+            self.articles_tree.selection_set(item)
+            article_id = self.articles_tree.item(item)['values'][0]
+
+            # Verifier si l'article a des produits lies avec fiche/devis
+            produits = self.db.get_produits_article(article_id)
+            has_fiche = False
+            has_devis = False
+            for p in produits:
+                produit = self.db.get_produit(p['produit_id'])
+                if produit:
+                    if produit.get('fiche_technique'):
+                        has_fiche = True
+                    if produit.get('devis_fournisseur'):
+                        has_devis = True
+
+            # Activer/desactiver les options
+            self.article_context_menu.entryconfig(4, state='normal' if has_fiche else 'disabled')
+            self.article_context_menu.entryconfig(5, state='normal' if has_devis else 'disabled')
+
+            try:
+                self.article_context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                self.article_context_menu.grab_release()
+
+    def _copy_article_designation(self):
+        """Copie la designation de l'article"""
+        selection = self.articles_tree.selection()
+        if selection:
+            item = self.articles_tree.item(selection[0])
+            designation = item['values'][2]  # colonne designation
+            self.window.clipboard_clear()
+            self.window.clipboard_append(designation)
+            messagebox.showinfo("Copie", "Designation copiee dans le presse-papier")
+
+    def _copy_article_code(self):
+        """Copie le code de l'article"""
+        selection = self.articles_tree.selection()
+        if selection:
+            item = self.articles_tree.item(selection[0])
+            code = item['values'][1]  # colonne code
+            self.window.clipboard_clear()
+            self.window.clipboard_append(code)
+            messagebox.showinfo("Copie", "Code copie dans le presse-papier")
+
+    def _copy_article_all(self):
+        """Copie toutes les infos de l'article"""
+        selection = self.articles_tree.selection()
+        if selection:
             item = self.articles_tree.item(selection[0])
             article_id = item['values'][0]
-            self.db.delete_article_dpgf(article_id)
-            self.current_article_id = None
-            self._load_articles()
+            article = self.db.get_article_dpgf(article_id)
+            if article:
+                text = f"Code: {article.get('code', '')}\n"
+                text += f"Designation: {article.get('designation', '')}\n"
+                text += f"Description: {article.get('description', '')}\n"
+                text += f"Presentation: {article.get('presentation', '')}\n"
+                text += f"Quantite: {article.get('quantite', 1)} {article.get('unite', 'U')}\n"
+                text += f"Prix unitaire HT: {article.get('prix_unitaire_ht', 0):.2f} EUR\n"
+                text += f"Prix total HT: {article.get('prix_total_ht', 0):.2f} EUR"
+                self.window.clipboard_clear()
+                self.window.clipboard_append(text)
+                messagebox.showinfo("Copie", "Informations copiees dans le presse-papier")
 
-            # Masquer le detail
-            self.detail_content.pack_forget()
-            self.no_selection_label.pack(expand=True)
+    def _open_article_fiche(self):
+        """Ouvre la fiche technique du premier produit lie"""
+        selection = self.articles_tree.selection()
+        if selection:
+            article_id = self.articles_tree.item(selection[0])['values'][0]
+            produits = self.db.get_produits_article(article_id)
+            for p in produits:
+                produit = self.db.get_produit(p['produit_id'])
+                if produit and produit.get('fiche_technique'):
+                    filepath = os.path.join(self.db.data_dir, produit['fiche_technique'])
+                    if os.path.exists(filepath):
+                        self._open_file(filepath)
+                        return
+            messagebox.showinfo("Info", "Aucune fiche technique disponible")
+
+    def _open_article_devis(self):
+        """Ouvre le devis fournisseur du premier produit lie"""
+        selection = self.articles_tree.selection()
+        if selection:
+            article_id = self.articles_tree.item(selection[0])['values'][0]
+            produits = self.db.get_produits_article(article_id)
+            for p in produits:
+                produit = self.db.get_produit(p['produit_id'])
+                if produit and produit.get('devis_fournisseur'):
+                    filepath = os.path.join(self.db.data_dir, produit['devis_fournisseur'])
+                    if os.path.exists(filepath):
+                        self._open_file(filepath)
+                        return
+            messagebox.showinfo("Info", "Aucun devis fournisseur disponible")
+
+    def _edit_article(self):
+        """Modifie l'article selectionne"""
+        selection = self.articles_tree.selection()
+        if not selection:
+            return
+
+        article_id = self.articles_tree.item(selection[0])['values'][0]
+        dialog = ArticleDialog(self.window, self.db, self.chantier_id, article_id)
+        if dialog.result:
+            self._load_articles()
+            # Reselectionner l'article
+            for item in self.articles_tree.get_children():
+                if self.articles_tree.item(item)['values'][0] == article_id:
+                    self.articles_tree.selection_set(item)
+                    self._on_article_select(None)
+                    break
 
     def _add_produit(self):
         """Ajoute un produit a l'article"""
@@ -658,6 +820,7 @@ class DPGFChiffrageView:
             return
 
         description = self.description_text.get('1.0', tk.END).strip()
+        presentation = self.presentation_text.get('1.0', tk.END).strip()
 
         article = self.db.get_article_dpgf(self.current_article_id)
         if not article:
@@ -667,6 +830,7 @@ class DPGFChiffrageView:
             'code': article['code'],
             'designation': article['designation'],
             'description': description,
+            'presentation': presentation,
             'categorie': article['categorie'],
             'largeur_mm': article['largeur_mm'],
             'hauteur_mm': article['hauteur_mm'],
@@ -683,6 +847,10 @@ class DPGFChiffrageView:
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
+
+    def _save_presentation(self):
+        """Sauvegarde la presentation de l'article"""
+        self._save_description()  # Reutilise la meme logique
 
     def _save_tva(self):
         """Sauvegarde le taux de TVA de l'article"""
@@ -977,6 +1145,18 @@ class ArticleDialog:
         self.description_text.insert('1.0', self.data.get('description', '') or '')
         self.description_text.grid(row=row, column=1, sticky='w', padx=5, pady=8)
 
+        # Presentation (pour export Odoo - ligne 2)
+        row += 1
+        tk.Label(form_card, text="Presentation", font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='ne', padx=(5, 10), pady=8)
+
+        self.presentation_text = tk.Text(form_card, width=36, height=2, font=Theme.FONTS['body'],
+                                        bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                        bd=1, relief='solid', wrap='word')
+        self.presentation_text.insert('1.0', self.data.get('presentation', '') or '')
+        self.presentation_text.grid(row=row, column=1, sticky='w', padx=5, pady=8)
+
         # Notes
         row += 1
         tk.Label(form_card, text="Notes", font=Theme.FONTS['body'],
@@ -1019,6 +1199,7 @@ class ArticleDialog:
             'code': self.entries['code'].get().strip(),
             'designation': designation,
             'description': self.description_text.get('1.0', tk.END).strip(),
+            'presentation': self.presentation_text.get('1.0', tk.END).strip(),
             'categorie': self.entries['categorie'].get().strip(),
             'unite': self.entries['unite'].get().strip() or 'U',
             'quantite': quantite,

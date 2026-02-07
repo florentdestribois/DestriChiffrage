@@ -8,6 +8,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import os
 import sys
+import subprocess
+import platform
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from ui.theme import Theme
@@ -25,21 +27,27 @@ class ProductSearchDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Rechercher un produit")
-        self.dialog.geometry("900x600")
-        self.dialog.minsize(850, 550)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
-        # Centrer
+        # Ouvrir sur toute la hauteur de l'ecran
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 900) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 600) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        screen_height = self.dialog.winfo_screenheight()
+        window_height = screen_height - 80  # Marge pour la barre des taches
+        self.dialog.geometry(f"1000x{window_height}")
+        self.dialog.minsize(950, 700)
+
+        # Centrer horizontalement, en haut de l'ecran
+        x = parent.winfo_x() + (parent.winfo_width() - 1000) // 2
+        self.dialog.geometry(f"1000x{window_height}+{x}+10")
 
         # Variables
         self.search_var = tk.StringVar()
         self.category_var = tk.StringVar(value="Toutes")
+        self.subcategory_var = tk.StringVar(value="Toutes")
+        self.subcategory2_var = tk.StringVar(value="Toutes")
+        self.subcategory3_var = tk.StringVar(value="Toutes")
         self.quantity_var = tk.StringVar(value="1")
 
         self._create_widgets()
@@ -91,12 +99,56 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.category_combo = ttk.Combobox(search_frame, textvariable=self.category_var,
-                                          width=18, state='readonly',
+                                          width=14, state='readonly',
                                           font=Theme.FONTS['body'])
         cats = ['Toutes'] + self.db.get_categories_names()
         self.category_combo['values'] = cats
         self.category_combo.pack(side=tk.LEFT, padx=(8, 0))
-        self.category_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
+        self.category_combo.bind('<<ComboboxSelected>>', lambda e: self._on_category_change())
+
+        # Ligne 2 pour les sous-categories
+        search_frame2 = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=16, pady=8,
+                                highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        search_frame2.pack(fill=tk.X, pady=(0, 12))
+
+        # Sous-categorie 1
+        tk.Label(search_frame2, text="Sous-cat 1",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
+
+        self.subcategory_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory_var,
+                                             width=14, state='readonly',
+                                             font=Theme.FONTS['body'])
+        self.subcategory_combo['values'] = ['Toutes']
+        self.subcategory_combo.pack(side=tk.LEFT, padx=(8, 16))
+        self.subcategory_combo.bind('<<ComboboxSelected>>', lambda e: self._on_subcategory_change())
+
+        # Sous-categorie 2
+        tk.Label(search_frame2, text="Sous-cat 2",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
+
+        self.subcategory2_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory2_var,
+                                              width=14, state='readonly',
+                                              font=Theme.FONTS['body'])
+        self.subcategory2_combo['values'] = ['Toutes']
+        self.subcategory2_combo.pack(side=tk.LEFT, padx=(8, 16))
+        self.subcategory2_combo.bind('<<ComboboxSelected>>', lambda e: self._on_subcategory2_change())
+
+        # Sous-categorie 3
+        tk.Label(search_frame2, text="Sous-cat 3",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
+
+        self.subcategory3_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory3_var,
+                                              width=14, state='readonly',
+                                              font=Theme.FONTS['body'])
+        self.subcategory3_combo['values'] = ['Toutes']
+        self.subcategory3_combo.pack(side=tk.LEFT, padx=(8, 0))
+        self.subcategory3_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
 
         # Tableau des produits
         table_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'],
@@ -104,7 +156,7 @@ class ProductSearchDialog:
         table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
 
         columns = ('id', 'categorie', 'designation', 'hauteur', 'largeur', 'prix', 'reference')
-        self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=12)
+        self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
 
         col_config = {
             'id': ('ID', 50, 'center'),
@@ -134,6 +186,20 @@ class ProductSearchDialog:
         # Double-clic pour selectionner
         self.tree.bind('<Double-1>', lambda e: self._on_select())
 
+        # Menu contextuel
+        self.context_menu = tk.Menu(self.dialog, tearoff=0)
+        self.context_menu.add_command(label="Copier la designation", command=self._copy_designation)
+        self.context_menu.add_command(label="Copier la reference", command=self._copy_reference)
+        self.context_menu.add_command(label="Copier tout", command=self._copy_all)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Voir la fiche technique", command=self._open_fiche)
+        self.context_menu.add_command(label="Voir le devis fournisseur", command=self._open_devis)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Modifier le produit", command=self._modify_product)
+        self.context_menu.add_command(label="Supprimer le produit", command=self._delete_product)
+
+        self.tree.bind('<Button-3>', self._show_context_menu)
+
         # Zone quantite
         qty_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=16, pady=12,
                             highlightbackground=Theme.COLORS['border'], highlightthickness=1)
@@ -161,6 +227,12 @@ class ProductSearchDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
         btn_frame.pack(fill=tk.X)
 
+        # Bouton creer produit a gauche
+        tk.Button(btn_frame, text="Creer un produit", font=Theme.FONTS['body'],
+                 bg=Theme.COLORS['secondary'], fg=Theme.COLORS['white'],
+                 bd=0, padx=24, pady=10, cursor='hand2',
+                 command=self._create_product).pack(side=tk.LEFT)
+
         tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
                  bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
                  bd=0, padx=24, pady=10, cursor='hand2',
@@ -175,12 +247,68 @@ class ProductSearchDialog:
         """Charge tous les produits"""
         self._on_search()
 
+    def _on_category_change(self):
+        """Appele quand la categorie change"""
+        categorie = self.category_var.get()
+
+        # Reinitialiser les sous-categories
+        self.subcategory_var.set("Toutes")
+        self.subcategory2_var.set("Toutes")
+        self.subcategory3_var.set("Toutes")
+
+        # Charger les sous-categories 1
+        subcats = ['Toutes'] + self.db.get_sous_categories(categorie)
+        self.subcategory_combo['values'] = subcats
+        self.subcategory2_combo['values'] = ['Toutes']
+        self.subcategory3_combo['values'] = ['Toutes']
+
+        self._on_search()
+
+    def _on_subcategory_change(self):
+        """Appele quand la sous-categorie 1 change"""
+        categorie = self.category_var.get()
+        sous_cat = self.subcategory_var.get()
+
+        # Reinitialiser sous-cat 2 et 3
+        self.subcategory2_var.set("Toutes")
+        self.subcategory3_var.set("Toutes")
+
+        # Charger les sous-categories 2
+        subcats2 = ['Toutes'] + self.db.get_sous_categories_2(categorie, sous_cat)
+        self.subcategory2_combo['values'] = subcats2
+        self.subcategory3_combo['values'] = ['Toutes']
+
+        self._on_search()
+
+    def _on_subcategory2_change(self):
+        """Appele quand la sous-categorie 2 change"""
+        categorie = self.category_var.get()
+        sous_cat = self.subcategory_var.get()
+        sous_cat2 = self.subcategory2_var.get()
+
+        # Reinitialiser sous-cat 3
+        self.subcategory3_var.set("Toutes")
+
+        # Charger les sous-categories 3
+        subcats3 = ['Toutes'] + self.db.get_sous_categories_3(categorie, sous_cat, sous_cat2)
+        self.subcategory3_combo['values'] = subcats3
+
+        self._on_search()
+
     def _on_search(self):
         """Execute la recherche"""
         terme = self.search_var.get()
         categorie = self.category_var.get()
+        sous_cat = self.subcategory_var.get()
+        sous_cat2 = self.subcategory2_var.get()
+        sous_cat3 = self.subcategory3_var.get()
 
-        produits = self.db.search_produits(terme, categorie)
+        produits = self.db.search_produits(
+            terme, categorie,
+            sous_categorie=sous_cat,
+            sous_categorie_2=sous_cat2,
+            sous_categorie_3=sous_cat3
+        )
 
         # Vider le tableau
         for item in self.tree.get_children():
@@ -199,6 +327,122 @@ class ProductSearchDialog:
             ))
 
         self.count_label.config(text=f"{len(produits)} produit(s)")
+
+    def _create_product(self):
+        """Ouvre le dialogue de creation de produit"""
+        from ui.dialogs import ProductDialog
+        dialog = ProductDialog(self.dialog, self.db)
+        if dialog.result:
+            # Rafraichir la liste des produits
+            self._on_search()
+            # Recharger les sous-categories
+            self._on_category_change()
+
+    def _show_context_menu(self, event):
+        """Affiche le menu contextuel"""
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.tree.selection_set(item)
+            # Verifier si le produit a une fiche technique ou devis
+            product_id = self.tree.item(item)['values'][0]
+            produit = self.db.get_produit(product_id)
+
+            # Activer/desactiver les options en fonction de la disponibilite
+            has_fiche = produit and produit.get('fiche_technique')
+            has_devis = produit and produit.get('fichier_pdf')
+
+            self.context_menu.entryconfig("Voir la fiche technique",
+                                          state=tk.NORMAL if has_fiche else tk.DISABLED)
+            self.context_menu.entryconfig("Voir le devis fournisseur",
+                                          state=tk.NORMAL if has_devis else tk.DISABLED)
+
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+
+    def _get_selected_product(self):
+        """Retourne le produit selectionne ou None"""
+        selection = self.tree.selection()
+        if not selection:
+            return None
+        product_id = self.tree.item(selection[0])['values'][0]
+        return self.db.get_produit(product_id)
+
+    def _copy_designation(self):
+        """Copie la designation du produit"""
+        produit = self._get_selected_product()
+        if produit:
+            self.dialog.clipboard_clear()
+            self.dialog.clipboard_append(produit.get('designation', ''))
+
+    def _copy_reference(self):
+        """Copie la reference du produit"""
+        produit = self._get_selected_product()
+        if produit:
+            self.dialog.clipboard_clear()
+            self.dialog.clipboard_append(produit.get('reference', '') or '')
+
+    def _copy_all(self):
+        """Copie toutes les informations du produit"""
+        produit = self._get_selected_product()
+        if produit:
+            text = f"{produit.get('designation', '')} | {produit.get('reference', '') or '-'} | {produit.get('prix_achat', 0):.2f} EUR"
+            self.dialog.clipboard_clear()
+            self.dialog.clipboard_append(text)
+
+    def _open_fiche(self):
+        """Ouvre la fiche technique du produit"""
+        produit = self._get_selected_product()
+        if produit and produit.get('fiche_technique'):
+            self._open_pdf(produit['fiche_technique'])
+
+    def _open_devis(self):
+        """Ouvre le devis fournisseur du produit"""
+        produit = self._get_selected_product()
+        if produit and produit.get('fichier_pdf'):
+            self._open_pdf(produit['fichier_pdf'])
+
+    def _open_pdf(self, filename):
+        """Ouvre un fichier PDF"""
+        if not filename:
+            return
+
+        # Chercher dans les dossiers possibles
+        possible_paths = [
+            os.path.join("data", "Fiches_techniques", filename),
+            os.path.join("data", "Devis_fournisseur", filename),
+            filename
+        ]
+
+        for path in possible_paths:
+            if os.path.exists(path):
+                try:
+                    if platform.system() == 'Windows':
+                        os.startfile(path)
+                    elif platform.system() == 'Darwin':
+                        subprocess.run(['open', path])
+                    else:
+                        subprocess.run(['xdg-open', path])
+                    return
+                except Exception as e:
+                    messagebox.showerror("Erreur", f"Impossible d'ouvrir le fichier: {e}")
+                    return
+
+        messagebox.showwarning("Fichier introuvable", f"Le fichier {filename} n'existe pas")
+
+    def _modify_product(self):
+        """Ouvre le dialogue de modification du produit"""
+        produit = self._get_selected_product()
+        if produit:
+            from ui.dialogs import ProductDialog
+            dialog = ProductDialog(self.dialog, self.db, produit)
+            if dialog.result:
+                self._on_search()
+
+    def _delete_product(self):
+        """Supprime le produit selectionne"""
+        produit = self._get_selected_product()
+        if produit:
+            self.db.delete_produit(produit['id'])
+            self._on_search()
 
     def _on_select(self):
         """Selectionne le produit"""

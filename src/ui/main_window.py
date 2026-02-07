@@ -18,7 +18,7 @@ try:
 except ImportError:
     HAS_PIL = False
 
-# Gestionnaire de panier
+# Gestionnaire de devis rapide
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -52,18 +52,18 @@ class MainWindow:
         self.largeur_var = tk.StringVar(value="Toutes")
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
 
-        # Charger les icones PDF, Devis et Panier
+        # Charger les icones PDF, Devis et Devis rapide
         self.pdf_icon = None
         self.devis_icon = None
         self.cart_icon = None
         self.pdf_labels = []  # Labels pour afficher les icônes PDF
         self.devis_labels = []  # Labels pour afficher les icônes Devis
-        self.cart_labels = []  # Labels pour afficher les icônes Panier
+        self.cart_labels = []  # Labels pour afficher les icônes Devis rapide
         self._load_pdf_icon()
         self._load_devis_icon()
         self._load_cart_icon()
 
-        # Gestionnaire de panier
+        # Gestionnaire de devis rapide
         self.cart_manager = CartManager.get_instance()
 
         # Construction de l'interface
@@ -106,7 +106,7 @@ class MainWindow:
                 print(f"Erreur chargement icone Devis: {e}")
 
     def _load_cart_icon(self):
-        """Charge l'icone Panier (utilise emoji Unicode)"""
+        """Charge l'icone Devis rapide (utilise emoji Unicode)"""
         # Pour l'instant, on n'utilisera pas d'image mais un label texte
         # avec l'emoji panier Unicode
         pass
@@ -222,9 +222,36 @@ class MainWindow:
                 font=('Segoe UI', 9), bg=Theme.COLORS['primary'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w')
 
-        # Droite: Controle de marge
+        # Droite: Controle de marge (pack en premier pour que le centre prenne l'espace restant)
         right_frame = tk.Frame(header_content, bg=Theme.COLORS['primary'])
         right_frame.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Centre: Menu Vente
+        center_frame = tk.Frame(header_content, bg=Theme.COLORS['primary'])
+        center_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(40, 0))
+
+        # Bouton menu deroulant "Vente" - Style moderne
+        self.vente_menubutton = tk.Menubutton(center_frame,
+                                              text="Vente \u25BC",
+                                              font=('Segoe UI', 11, 'bold'),
+                                              bg=Theme.COLORS['primary_light'],
+                                              fg=Theme.COLORS['white'],
+                                              activebackground=Theme.COLORS['accent'],
+                                              activeforeground=Theme.COLORS['white'],
+                                              bd=0, padx=20, pady=10, cursor='hand2',
+                                              relief='flat')
+        self.vente_menubutton.pack(side=tk.LEFT)
+
+        # Menu deroulant
+        vente_menu = tk.Menu(self.vente_menubutton, tearoff=0,
+                            bg=Theme.COLORS['bg_alt'],
+                            fg=Theme.COLORS['text'],
+                            activebackground=Theme.COLORS['secondary'],
+                            activeforeground=Theme.COLORS['white'],
+                            font=('Segoe UI', 10))
+        vente_menu.add_command(label="Analyse des ventes", command=self.on_marches_analyse)
+        vente_menu.add_command(label="Nouveau chantier", command=self.on_new_chantier)
+        self.vente_menubutton.config(menu=vente_menu)
 
         # Label Marge
         tk.Label(right_frame, text="Marge",
@@ -437,7 +464,7 @@ class MainWindow:
             'reference': ('Ref.', 70, 'center'),
             'pdf': ('Fiche', 50, 'center'),
             'devis': ('Devis', 50, 'center'),
-            'cart': ('Panier', 50, 'center'),
+            'cart': ('Devis', 50, 'center'),
         }
 
         for col, (text, width, anchor) in col_config.items():
@@ -519,7 +546,7 @@ class MainWindow:
         right_btns.pack(side=tk.RIGHT)
 
         # Bouton Panier
-        self.cart_btn = tk.Button(right_btns, text="\U0001F6D2 Panier (0)",  # 🛒
+        self.cart_btn = tk.Button(right_btns, text="\U0001F4CB Devis rapide (0)",  # 📋
                                   font=Theme.FONTS['body_bold'],
                                   bg=Theme.COLORS['secondary'],
                                   fg=Theme.COLORS['white'],
@@ -748,7 +775,7 @@ class MainWindow:
         # Remplir
         for p in produits:
             prix_vente = p['prix_achat'] * (1 + marge / 100)
-            # Determiner si PDF/Devis/Panier sont presents (tags seulement, pas de texte visible)
+            # Determiner si PDF/Devis/Devis rapide sont presents (tags seulement, pas de texte visible)
             has_pdf = bool(p.get('fiche_technique'))
             has_devis = bool(p.get('devis_fournisseur'))
             in_cart = self.cart_manager.is_in_cart(p['id'])
@@ -1127,12 +1154,12 @@ Prix max: {stats['prix_max']:.2f} EUR
                 messagebox.showerror("Erreur", f"Erreur: {e}")
 
     def on_clear_database(self):
-        """Vide la base de donnees (tous les produits)"""
-        # Dialogue personnalise avec case a cocher pour les categories
+        """Vide la base de donnees (produits, chantiers, etc.) - Ne touche pas aux parametres"""
+        # Dialogue personnalise avec cases a cocher
         dialog = tk.Toplevel(self.root)
         dialog.title("Vider la base de donnees")
-        dialog.geometry("450x280")
-        dialog.minsize(430, 260)
+        dialog.geometry("450x340")
+        dialog.minsize(430, 320)
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)
@@ -1143,9 +1170,10 @@ Prix max: {stats['prix_max']:.2f} EUR
         y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
         dialog.geometry(f"+{x}+{y}")
 
-        # Variable pour la case a cocher
+        # Variables pour les cases a cocher
         clear_categories_var = tk.BooleanVar(value=False)
-        result = {'confirmed': False, 'clear_categories': False}
+        clear_chantiers_var = tk.BooleanVar(value=True)
+        result = {'confirmed': False, 'clear_categories': False, 'clear_chantiers': True}
 
         # Frame principal
         main_frame = tk.Frame(dialog, bg=Theme.COLORS['bg'], padx=20, pady=20)
@@ -1155,18 +1183,20 @@ Prix max: {stats['prix_max']:.2f} EUR
         title_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
         title_frame.pack(fill=tk.X, pady=(0, 15))
 
-        tk.Label(title_frame, text="⚠️ ATTENTION", font=Theme.FONTS['title'],
+        tk.Label(title_frame, text="ATTENTION", font=Theme.FONTS['title'],
                 bg=Theme.COLORS['bg'], fg=Theme.COLORS['danger']).pack()
 
         # Message
-        message = ("Cette action va supprimer TOUS les produits du catalogue.\n\n"
-                  "Cette action est IRREVERSIBLE.\n\n"
-                  "Voulez-vous continuer?")
+        message = ("Cette action va supprimer TOUS les produits du catalogue\n"
+                  "et TOUS les chantiers avec leurs donnees.\n\n"
+                  "Les parametres (marge, taux horaires) seront conserves.\n"
+                  "Les IDs seront reinitialises.\n\n"
+                  "Cette action est IRREVERSIBLE.")
         tk.Label(main_frame, text=message, font=Theme.FONTS['body'],
                 bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
                 justify=tk.LEFT, wraplength=400).pack(pady=(0, 15))
 
-        # Case a cocher pour les categories
+        # Cases a cocher
         check_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=10, pady=10,
                               highlightbackground=Theme.COLORS['border'], highlightthickness=1)
         check_frame.pack(fill=tk.X, pady=(0, 20))
@@ -1176,6 +1206,12 @@ Prix max: {stats['prix_max']:.2f} EUR
                       bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
                       cursor='hand2').pack(anchor='w')
+
+        tk.Checkbutton(check_frame, text="Supprimer tous les chantiers et marches",
+                      variable=clear_chantiers_var, font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
+                      cursor='hand2').pack(anchor='w', pady=(5, 0))
 
         # Boutons
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
@@ -1188,6 +1224,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         def on_confirm():
             result['confirmed'] = True
             result['clear_categories'] = clear_categories_var.get()
+            result['clear_chantiers'] = clear_chantiers_var.get()
             dialog.destroy()
 
         tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
@@ -1208,25 +1245,34 @@ Prix max: {stats['prix_max']:.2f} EUR
 
         # Seconde confirmation
         confirm_msg = "Derniere chance!\n\nTous les produits vont etre supprimes definitivement."
+        if result['clear_chantiers']:
+            confirm_msg += "\n\nTous les chantiers et marches seront aussi supprimes."
         if result['clear_categories']:
             confirm_msg += "\n\nToutes les categories seront aussi supprimees."
-        confirm_msg += "\n\nConfirmer la suppression?"
+        confirm_msg += "\n\nLes IDs seront reinitialises.\n\nConfirmer la suppression?"
 
         confirm = messagebox.askyesno("Confirmation DEFINITIVE", confirm_msg)
 
         if not confirm:
             return
 
-        # Supprimer tous les produits (et categories si demande)
-        self.db.clear_all_produits(clear_categories=result['clear_categories'])
+        # Supprimer toutes les donnees
+        self.db.clear_all_data(
+            clear_categories=result['clear_categories'],
+            clear_chantiers=result['clear_chantiers']
+        )
         self.refresh_data()
 
+        # Message de confirmation
+        elements_supprimes = ["produits"]
+        if result['clear_chantiers']:
+            elements_supprimes.append("chantiers")
         if result['clear_categories']:
-            self.set_status("Base de donnees et categories videes")
-            messagebox.showinfo("Termine", "Tous les produits et categories ont ete supprimes.")
-        else:
-            self.set_status("Base de donnees videe")
-            messagebox.showinfo("Termine", "Tous les produits ont ete supprimes.")
+            elements_supprimes.append("categories")
+
+        msg = f"Tous les {', '.join(elements_supprimes)} ont ete supprimes.\nLes IDs ont ete reinitialises."
+        self.set_status("Base de donnees videe")
+        messagebox.showinfo("Termine", msg)
 
     # ==================== COPIER-COLLER ====================
 
@@ -1337,7 +1383,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         self._update_all_icons()
 
     def _clear_pdf_icons(self):
-        """Nettoie toutes les icônes affichées (PDF, Devis et Panier)"""
+        """Nettoie toutes les icônes affichées (PDF, Devis et Devis rapide)"""
         for label in self.pdf_labels:
             try:
                 label.place_forget()
@@ -1363,7 +1409,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         self.cart_labels.clear()
 
     def _update_all_icons(self):
-        """Met à jour toutes les icônes (PDF, Devis et Panier)"""
+        """Met à jour toutes les icônes (PDF, Devis et Devis rapide)"""
         # Nettoyer toutes les icônes une seule fois au début
         self._clear_pdf_icons()
         # Recréer toutes les icônes
@@ -1508,7 +1554,7 @@ Prix max: {stats['prix_max']:.2f} EUR
     # ==================== GESTION DU PANIER ====================
 
     def _update_cart_icons(self):
-        """Met a jour les positions des icones Panier avec des Labels overlay"""
+        """Met a jour les positions des icones Devis rapide avec des Labels overlay"""
         try:
             tree_height = self.tree.winfo_height()
             tree_width = self.tree.winfo_width()
@@ -1548,7 +1594,7 @@ Prix max: {stats['prix_max']:.2f} EUR
             pass
 
     def _on_cart_icon_click(self, item):
-        """Gere le clic sur une icone Panier"""
+        """Gere le clic sur une icone Devis rapide"""
         values = self.tree.item(item)['values']
         product_id = values[0]
 
@@ -1560,33 +1606,33 @@ Prix max: {stats['prix_max']:.2f} EUR
 
         if self.cart_manager.is_in_cart(product_id):
             self.cart_manager.remove_from_cart(product_id)
-            self.set_status(f"Article retire du panier: {product['designation']}")
+            self.set_status(f"Article retire du devis: {product['designation']}")
         else:
             self.cart_manager.add_to_cart(product)
-            self.set_status(f"Article ajoute au panier: {product['designation']}")
+            self.set_status(f"Article ajoute au devis: {product['designation']}")
 
         self._update_cart_button()
         self._update_all_icons()
 
     def _update_cart_button(self):
-        """Met a jour le compteur du bouton panier"""
+        """Met a jour le compteur du bouton devis rapide"""
         count = self.cart_manager.get_cart_count()
-        self.cart_btn.config(text=f"\U0001F6D2 Panier ({count})")
+        self.cart_btn.config(text=f"\U0001F4CB Devis rapide ({count})")
 
     def _show_cart_panel(self):
-        """Affiche le panneau du panier"""
+        """Affiche le panneau du devis rapide"""
         CartPanel(self.root, self.cart_manager, self.db,
                  on_export_callback=self._on_export_cart)
 
     def _on_export_cart(self):
-        """Lance l'export du panier"""
+        """Lance l'export du devis rapide"""
         dialog = CartExportDialog(self.root, self.cart_manager, self.db)
         self.root.wait_window(dialog)
 
         if dialog.result:
             response = messagebox.askyesno(
-                "Vider le panier",
-                "Export termine avec succes!\n\nVoulez-vous vider le panier?"
+                "Vider le devis",
+                "Export termine avec succes!\n\nVoulez-vous vider le devis?"
             )
             if response:
                 self.cart_manager.clear_cart()
