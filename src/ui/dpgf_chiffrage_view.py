@@ -53,33 +53,15 @@ class DPGFChiffrageView:
     def _create_widgets(self):
         """Cree les widgets"""
         # Header
-        header = tk.Frame(self.window, bg=Theme.COLORS['primary'], height=70)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        header_content = tk.Frame(header, bg=Theme.COLORS['primary'])
-        header_content.pack(fill=tk.BOTH, expand=True, padx=24, pady=12)
-
-        # Titre
-        title_frame = tk.Frame(header_content, bg=Theme.COLORS['primary'])
-        title_frame.pack(side=tk.LEFT)
-
-        tk.Label(title_frame, text=f"Chiffrage: {self.chantier.get('nom', '')}",
-                font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'],
-                fg=Theme.COLORS['white']).pack(anchor='w')
-
         info = f"{self.chantier.get('lieu', '')} - {self.chantier.get('lot', '')}"
-        tk.Label(title_frame, text=info,
-                font=Theme.FONTS['small'],
-                bg=Theme.COLORS['primary'],
-                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+        header = Theme.create_header(self.window, f"Chiffrage: {self.chantier.get('nom', '')}",
+                                    subtitle=info, height=70)
+        header_content = header.winfo_children()[0] if header.winfo_children() else header
 
-        # Total
-        self.total_label = tk.Label(header_content, text="Total: 0.00 EUR HT",
-                                   font=Theme.FONTS['heading'],
-                                   bg=Theme.COLORS['primary'],
-                                   fg=Theme.COLORS['secondary'])
+        # Total - ajouté au contenu du header
+        self.total_label = Theme.create_label(header_content, "Total: 0.00 EUR HT",
+                                             style='heading', bg=Theme.COLORS['primary'],
+                                             fg=Theme.COLORS['secondary'])
         self.total_label.pack(side=tk.RIGHT)
 
         # Main content - 2 colonnes
@@ -103,37 +85,20 @@ class DPGFChiffrageView:
                 bg=Theme.COLORS['bg'],
                 fg=Theme.COLORS['secondary']).pack(side=tk.LEFT)
 
-        tk.Button(articles_header, text="+ Ajouter article",
-                 font=Theme.FONTS['small'],
-                 bg=Theme.COLORS['accent'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=12, pady=4, cursor='hand2',
-                 command=self._add_article).pack(side=tk.RIGHT)
+        Theme.create_button(articles_header, "+ Ajouter article", command=self._add_article,
+                           style='primary', padx=12, pady=4).pack(side=tk.RIGHT)
 
-        tk.Button(articles_header, text="Import catalogue",
-                 font=Theme.FONTS['small'],
-                 bg=Theme.COLORS['secondary'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=12, pady=4, cursor='hand2',
-                 command=self._import_from_catalog).pack(side=tk.RIGHT, padx=(0, 8))
+        Theme.create_button(articles_header, "Import catalogue", command=self._import_from_catalog,
+                           style='secondary', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
-        tk.Button(articles_header, text="Import DPGF",
-                 font=Theme.FONTS['small'],
-                 bg=Theme.COLORS['bg_dark'],
-                 fg=Theme.COLORS['text'],
-                 bd=0, padx=12, pady=4, cursor='hand2',
-                 command=self._import_dpgf).pack(side=tk.RIGHT, padx=(0, 8))
+        Theme.create_button(articles_header, "Import DPGF", command=self._import_dpgf,
+                           style='ghost', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
-        tk.Button(articles_header, text="Supprimer",
-                 font=Theme.FONTS['small'],
-                 bg=Theme.COLORS['danger'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=12, pady=4, cursor='hand2',
-                 command=self._delete_article).pack(side=tk.RIGHT, padx=(0, 8))
+        Theme.create_button(articles_header, "Supprimer", command=self._delete_article,
+                           style='danger', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
         # Tableau articles
-        table_frame = tk.Frame(left_frame, bg=Theme.COLORS['bg_alt'],
-                              highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        table_frame = Theme.create_card(left_frame, padx=0, pady=0)
         table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ('id', 'code', 'designation', 'qte', 'cout_mat', 'cout_mo', 'prix_unit', 'prix_total')
@@ -198,8 +163,7 @@ class DPGFChiffrageView:
                 fg=Theme.COLORS['secondary']).pack(side=tk.LEFT)
 
         # Card detail
-        self.detail_card = tk.Frame(right_frame, bg=Theme.COLORS['bg_alt'], padx=16, pady=16,
-                                   highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        self.detail_card = Theme.create_card(right_frame, padx=16, pady=16)
         self.detail_card.pack(fill=tk.BOTH, expand=True)
 
         # Message initial
@@ -219,26 +183,14 @@ class DPGFChiffrageView:
         action_bar = tk.Frame(self.window, bg=Theme.COLORS['bg'], height=56)
         action_bar.pack(fill=tk.X, padx=16, pady=(0, 16))
 
-        tk.Button(action_bar, text="Fermer",
-                 font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'],
-                 fg=Theme.COLORS['text'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self._on_close).pack(side=tk.LEFT)
+        Theme.create_button(action_bar, "Fermer", command=self._on_close,
+                           style='ghost').pack(side=tk.LEFT)
 
-        tk.Button(action_bar, text="Exporter DPGF",
-                 font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self._export_dpgf).pack(side=tk.RIGHT)
+        Theme.create_button(action_bar, "Exporter DPGF", command=self._export_dpgf,
+                           style='primary').pack(side=tk.RIGHT)
 
-        tk.Button(action_bar, text="Resultat marche",
-                 font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['secondary'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self._set_resultat).pack(side=tk.RIGHT, padx=(0, 8))
+        Theme.create_button(action_bar, "Resultat marche", command=self._set_resultat,
+                           style='secondary').pack(side=tk.RIGHT, padx=(0, 8))
 
     def _create_detail_widgets(self):
         """Cree les widgets du panneau de detail"""
@@ -311,16 +263,12 @@ class DPGFChiffrageView:
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['secondary']).pack(side=tk.LEFT)
 
-        tk.Button(produits_header, text="+ Ajouter",
-                 font=Theme.FONTS['tiny'],
-                 bg=Theme.COLORS['accent'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=8, pady=2, cursor='hand2',
-                 command=self._add_produit).pack(side=tk.RIGHT)
+        Theme.create_button(produits_header, "+ Ajouter", command=self._add_produit,
+                           style='primary', padx=8, pady=2).pack(side=tk.RIGHT)
 
         # Liste produits
-        produits_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg'],
-                                 highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        produits_frame = Theme.create_card(self.detail_content, padx=0, pady=0,
+                                          bg=Theme.COLORS['bg'])
         produits_frame.pack(fill=tk.X, pady=(8, 12))
 
         columns = ('id', 'designation', 'qte', 'prix')
@@ -357,12 +305,9 @@ class DPGFChiffrageView:
         self.produits_tree.bind('<Button-3>', self._show_produit_context_menu)
 
         # Bouton supprimer produit
-        tk.Button(self.detail_content, text="Retirer le produit selectionne",
-                 font=Theme.FONTS['tiny'],
-                 bg=Theme.COLORS['danger'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=8, pady=2, cursor='hand2',
-                 command=self._remove_produit).pack(anchor='e', pady=(0, 8))
+        Theme.create_button(self.detail_content, "Retirer le produit selectionne",
+                           command=self._remove_produit, style='danger',
+                           padx=8, pady=2).pack(anchor='e', pady=(0, 8))
 
         ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=8)
 
@@ -1084,23 +1029,15 @@ class ArticleDialog:
     def _create_widgets(self):
         """Cree les widgets"""
         # Header
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
         title = "Modifier l'article" if self.article_id else "Nouvel article DPGF"
-        tk.Label(header, text=title,
-                font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'],
-                fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        Theme.create_header(self.dialog, title, icon="📝")
 
         # Main frame
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card
-        form_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        form_card = Theme.create_card(main_frame)
         form_card.pack(fill=tk.BOTH, expand=True)
 
         self.entries = {}
@@ -1173,15 +1110,10 @@ class ArticleDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Enregistrer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Enregistrer", command=self._save,
+                           style='primary', padx=24).pack(side=tk.RIGHT)
 
     def _save(self):
         """Enregistre l'article"""

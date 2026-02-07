@@ -1,4 +1,4 @@
-# Modifications finales pour compléter l'implémentation du panier
+# Modifications finales pour compléter l'implémentation du devis rapide
 
 ## ✅ Déjà fait
 1. CartManager créé (`src/cart_manager.py`)
@@ -11,13 +11,13 @@
 
 ## ⏳ Modifications restantes dans main_window.py
 
-### 1. Ajouter bouton Panier dans la toolbar (après ligne ~300)
+### 1. Ajouter bouton Devis rapide dans la toolbar (après ligne ~300)
 
 Ajouter dans `_create_toolbar()` :
 
 ```python
-# Bouton Panier
-self.cart_btn = tk.Button(action_buttons, text="\U0001F6D2 Panier (0)",  # 🛒
+# Bouton Devis rapide
+self.cart_btn = tk.Button(action_buttons, text="\U0001F6D2 Devis rapide (0)",  # 🛒
                           font=Theme.FONTS['body_bold'],
                           bg=Theme.COLORS['secondary'], fg=Theme.COLORS['white'],
                           activebackground=Theme.COLORS['accent'],
@@ -30,7 +30,7 @@ self.cart_btn.pack(side=tk.LEFT, padx=4)
 
 ```python
 def _clear_pdf_icons(self):
-    """Nettoie toutes les icônes affichées (PDF, Devis et Panier)"""
+    """Nettoie toutes les icônes affichées (PDF, Devis et Devis rapide)"""
     for label in self.pdf_labels:
         try:
             label.place_forget()
@@ -60,7 +60,7 @@ def _clear_pdf_icons(self):
 
 ```python
 def _update_all_icons(self):
-    """Met à jour toutes les icônes (PDF, Devis et Panier)"""
+    """Met à jour toutes les icônes (PDF, Devis et Devis rapide)"""
     self._update_pdf_icons()
     self._update_devis_icons()
     self._update_cart_icons()
@@ -70,7 +70,7 @@ def _update_all_icons(self):
 
 ```python
 def _update_cart_icons(self):
-    """Met à jour les positions des icônes Panier avec des Labels overlay"""
+    """Met à jour les positions des icônes Devis rapide avec des Labels overlay"""
     # Obtenir les limites du Treeview
     try:
         tree_height = self.tree.winfo_height()
@@ -90,7 +90,7 @@ def _update_cart_icons(self):
                 if bbox[0] < 0 or bbox[0] + bbox[2] > tree_width:
                     continue
 
-                # Vérifier si l'item est dans le panier
+                # Vérifier si l'item est dans le devis rapide
                 values = self.tree.item(item)['values']
                 product_id = values[0]
                 in_cart = self.cart_manager.is_in_cart(product_id)
@@ -99,7 +99,7 @@ def _update_cart_icons(self):
                 x = bbox[0] + (bbox[2] - 24) // 2
                 y = bbox[1] + (bbox[3] - 24) // 2 + 1
 
-                # Emoji différent selon si dans panier ou non
+                # Emoji différent selon si dans devis rapide ou non
                 emoji = "✓" if in_cart else "+"
                 color = Theme.COLORS['success'] if in_cart else Theme.COLORS['secondary']
 
@@ -118,11 +118,11 @@ def _update_cart_icons(self):
         pass
 ```
 
-### 5. Ajouter les méthodes de gestion du panier (fin du fichier)
+### 5. Ajouter les méthodes de gestion du devis rapide (fin du fichier)
 
 ```python
 def _on_cart_icon_click(self, item):
-    """Gère le clic sur une icône Panier"""
+    """Gère le clic sur une icône Devis rapide"""
     values = self.tree.item(item)['values']
     product_id = values[0]
 
@@ -134,38 +134,38 @@ def _on_cart_icon_click(self, item):
         return
 
     if self.cart_manager.is_in_cart(product_id):
-        # Retirer du panier
+        # Retirer du devis rapide
         self.cart_manager.remove_from_cart(product_id)
-        self.set_status(f"Article retiré du panier: {product['designation']}")
+        self.set_status(f"Article retiré du devis rapide: {product['designation']}")
     else:
-        # Ajouter au panier
+        # Ajouter au devis rapide
         self.cart_manager.add_to_cart(product)
-        self.set_status(f"Article ajouté au panier: {product['designation']}")
+        self.set_status(f"Article ajouté au devis rapide: {product['designation']}")
 
     # Rafraîchir l'affichage
     self._update_cart_button()
     self._update_all_icons()
 
 def _update_cart_button(self):
-    """Met à jour le compteur du bouton panier"""
+    """Met à jour le compteur du bouton devis rapide"""
     count = self.cart_manager.get_cart_count()
-    self.cart_btn.config(text=f"\U0001F6D2 Panier ({count})")
+    self.cart_btn.config(text=f"\U0001F6D2 Devis rapide ({count})")
 
 def _show_cart_panel(self):
-    """Affiche le panneau du panier"""
+    """Affiche le panneau du devis rapide"""
     CartPanel(self.root, self.cart_manager, self.db,
              on_export_callback=self._on_export_cart)
 
 def _on_export_cart(self):
-    """Lance l'export du panier"""
+    """Lance l'export du devis rapide"""
     dialog = CartExportDialog(self.root, self.cart_manager, self.db)
     self.root.wait_window(dialog)
 
     if dialog.result:
-        # Vider le panier après export réussi
+        # Vider le devis rapide après export réussi
         response = messagebox.askyesno(
-            "Vider le panier",
-            "Export terminé avec succès!\n\nVoulez-vous vider le panier?"
+            "Vider le devis rapide",
+            "Export terminé avec succès!\n\nVoulez-vous vider le devis rapide?"
         )
         if response:
             self.cart_manager.clear_cart()
@@ -182,15 +182,15 @@ python src/main.py
 ```
 
 Vérifier :
-1. Le bouton "Panier (0)" apparaît
-2. Les icônes "+" apparaissent dans la colonne Panier
-3. Clic sur "+" ajoute au panier → devient "✓"
+1. Le bouton "Devis rapide (0)" apparaît
+2. Les icônes "+" apparaissent dans la colonne Devis rapide
+3. Clic sur "+" ajoute au devis rapide → devient "✓"
 4. Le compteur du bouton s'incrémente
-5. Clic sur bouton Panier ouvre la fenêtre
+5. Clic sur bouton Devis rapide ouvre la fenêtre
 6. Export fonctionne avec les options
 
 ## Notes
 
 - Les icônes utilisent des emojis Unicode (🛒, +, ✓) au lieu d'images PNG
-- Couleur verte (✓) pour "dans le panier", or (+) pour "ajouter"
-- Le panier persiste pendant la session mais pas entre les redémarrages
+- Couleur verte (✓) pour "dans le devis rapide", or (+) pour "ajouter"
+- Le devis rapide persiste pendant la session mais pas entre les redémarrages

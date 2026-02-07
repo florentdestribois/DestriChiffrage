@@ -50,22 +50,16 @@ class ProductDialog:
 
     def _create_widgets(self):
         """Cree les widgets du formulaire"""
-        # Header - Style fenetre principale (primary au lieu de accent)
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
+        # Header
         title = "Nouveau produit" if not self.product_id else "Modifier le produit"
-        tk.Label(header, text=title, font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        Theme.create_header(self.dialog, title, icon="📦")
 
         # Main frame - Card style
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Formulaire dans une card avec scroll
-        form_outer = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'],
-                             highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        form_outer = Theme.create_card(main_frame, padx=0, pady=0)
         form_outer.pack(fill=tk.BOTH, expand=True)
 
         # Canvas pour le scroll
@@ -173,15 +167,10 @@ class ProductDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Enregistrer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Enregistrer", command=self._save,
+                           style='primary', padx=24).pack(side=tk.RIGHT)
 
     def _browse_file(self, entry_widget):
         """Ouvre un dialogue pour selectionner un fichier PDF"""
@@ -285,25 +274,19 @@ class CategoryDialog:
 
     def _create_widgets(self):
         """Cree les widgets"""
-        # Header - Style fenetre principale
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="Gestion des categories", font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        # Header
+        Theme.create_header(self.dialog, "Gestion des categories", icon="📂")
 
         # Main frame
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Section ajout - Card style
-        add_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        add_frame = Theme.create_card(main_frame)
         add_frame.pack(fill=tk.X, pady=(0, 16))
 
-        tk.Label(add_frame, text="AJOUTER UNE CATEGORIE", font=Theme.FONTS['subheading'],
-                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 12))
+        Theme.create_label(add_frame, "AJOUTER UNE CATEGORIE", style='subheading',
+                          bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 12))
 
         input_row = tk.Frame(add_frame, bg=Theme.COLORS['bg_alt'])
         input_row.pack(fill=tk.X)
@@ -324,14 +307,11 @@ class CategoryDialog:
                                       bd=1, relief='solid')
         self.new_desc_entry.pack(side=tk.LEFT, padx=(10, 16))
 
-        tk.Button(input_row, text="+ Ajouter", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['success'], fg=Theme.COLORS['white'],
-                 bd=0, padx=16, pady=6, cursor='hand2',
-                 command=self._add_category).pack(side=tk.LEFT)
+        Theme.create_button(input_row, "+ Ajouter", command=self._add_category,
+                           style='success', padx=16, pady=6).pack(side=tk.LEFT)
 
         # Liste des categories - Card style
-        list_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'],
-                             highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        list_frame = Theme.create_card(main_frame, padx=0, pady=0)
         list_frame.pack(fill=tk.BOTH, expand=True)
 
         # Header de liste - Style primary comme fenetre principale
@@ -367,15 +347,10 @@ class CategoryDialog:
         action_frame = tk.Frame(list_frame, bg=Theme.COLORS['bg_alt'], padx=12, pady=12)
         action_frame.pack(fill=tk.X)
 
-        tk.Button(action_frame, text="Modifier", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['secondary'], fg=Theme.COLORS['white'],
-                 bd=0, padx=18, pady=8, cursor='hand2',
-                 command=self._edit_category).pack(side=tk.LEFT, padx=(0, 8))
-
-        tk.Button(action_frame, text="Supprimer", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['danger'], fg=Theme.COLORS['white'],
-                 bd=0, padx=18, pady=8, cursor='hand2',
-                 command=self._delete_category).pack(side=tk.LEFT)
+        Theme.create_button(action_frame, "Modifier", command=self._edit_category,
+                           style='secondary', padx=18, pady=8).pack(side=tk.LEFT, padx=(0, 8))
+        Theme.create_button(action_frame, "Supprimer", command=self._delete_category,
+                           style='danger', padx=18, pady=8).pack(side=tk.LEFT)
 
         # Bouton fermer - Fixed at bottom
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
@@ -512,26 +487,19 @@ class EditCategoryDialog:
         y = parent.winfo_y() + (parent.winfo_height() - 320) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
-        # Header - Style primary
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=50)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="Modifier la categorie", font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=20, pady=12)
+        # Header
+        Theme.create_header(self.dialog, "Modifier la categorie", icon="✏️", height=50)
 
         # Main frame - Card style
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card pour le formulaire
-        form_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        form_card = Theme.create_card(main_frame)
         form_card.pack(fill=tk.X)
 
         # Nom
-        tk.Label(form_card, text="Nom:", font=Theme.FONTS['body'],
-                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text']).grid(row=0, column=0, sticky='e', padx=(5, 10), pady=12)
+        Theme.create_label(form_card, "Nom:", bg=Theme.COLORS['bg_alt']).grid(row=0, column=0, sticky='e', padx=(5, 10), pady=12)
 
         self.nom_entry = tk.Entry(form_card, width=28, font=Theme.FONTS['body'],
                                  bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'], bd=1, relief='solid')
@@ -539,8 +507,7 @@ class EditCategoryDialog:
         self.nom_entry.grid(row=0, column=1, sticky='w', padx=5, pady=12)
 
         # Description
-        tk.Label(form_card, text="Description:", font=Theme.FONTS['body'],
-                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text']).grid(row=1, column=0, sticky='e', padx=(5, 10), pady=12)
+        Theme.create_label(form_card, "Description:", bg=Theme.COLORS['bg_alt']).grid(row=1, column=0, sticky='e', padx=(5, 10), pady=12)
 
         self.desc_entry = tk.Entry(form_card, width=28, font=Theme.FONTS['body'],
                                   bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'], bd=1, relief='solid')
@@ -551,15 +518,10 @@ class EditCategoryDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=20, pady=8, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Enregistrer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=8, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=20, pady=8).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Enregistrer", command=self._save,
+                           style='primary', padx=20, pady=8).pack(side=tk.RIGHT)
 
         self.dialog.wait_window()
 
@@ -601,21 +563,19 @@ class ReassignProductsDialog:
         y = parent.winfo_y() + (parent.winfo_height() - 400) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
-        # Header - Style warning avec icone
+        # Header - Style warning
         header = tk.Frame(self.dialog, bg=Theme.COLORS['warning'], height=50)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
-
-        tk.Label(header, text="Reassigner les produits", font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['warning'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=20, pady=12)
+        Theme.create_label(header, "Reassigner les produits", style='heading',
+                          bg=Theme.COLORS['warning'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=20, pady=12)
 
         # Main frame
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card pour le contenu
-        content_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                               highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        content_card = Theme.create_card(main_frame)
         content_card.pack(fill=tk.X)
 
         # Compte des produits
@@ -650,15 +610,10 @@ class ReassignProductsDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(24, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Reassigner et supprimer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self._reassign).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost').pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Reassigner et supprimer", command=self._reassign,
+                           style='primary').pack(side=tk.RIGHT)
 
         self.dialog.wait_window()
 
@@ -707,13 +662,8 @@ class SettingsDialog:
 
     def _create_widgets(self):
         """Cree les widgets"""
-        # Header - Style primary
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="Parametres", font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        # Header
+        Theme.create_header(self.dialog, "Parametres", icon="⚙️")
 
         # Main frame
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
@@ -877,10 +827,8 @@ class SettingsDialog:
                 font=Theme.FONTS['body'], bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text']).pack(anchor='w', pady=(0, 16))
 
-        tk.Button(cat_frame, text="Gerer les categories", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=10, cursor='hand2',
-                 command=self._open_category_manager).pack(anchor='w')
+        Theme.create_button(cat_frame, "Gerer les categories", command=self._open_category_manager,
+                           style='primary').pack(anchor='w')
 
         # Resume des categories
         tk.Label(cat_frame, text="Categories actuelles:", font=Theme.FONTS['subheading'],
@@ -899,15 +847,10 @@ class SettingsDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Enregistrer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Enregistrer", command=self._save,
+                           style='primary', padx=24).pack(side=tk.RIGHT)
 
     def _open_category_manager(self):
         """Ouvre le gestionnaire de categories"""
@@ -1051,30 +994,21 @@ class AboutDialog:
         y = parent.winfo_y() + (parent.winfo_height() - 440) // 2
         dialog.geometry(f"+{x}+{y}")
 
-        # Header - Style primary comme fenetre principale
-        header = tk.Frame(dialog, bg=Theme.COLORS['primary'], height=90)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="DestriChiffrage", font=Theme.FONTS['title'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['white']).pack(pady=(20, 0))
-
-        tk.Label(header, text="Catalogue et chiffrage de portes", font=Theme.FONTS['small'],
-                bg=Theme.COLORS['primary'], fg=Theme.COLORS['text_muted']).pack()
+        # Header
+        Theme.create_header(dialog, "DestriChiffrage", subtitle="Chiffrage et approvisionnement", height=90)
 
         # Main frame
         main_frame = tk.Frame(dialog, bg=Theme.COLORS['bg'], padx=32, pady=24)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card pour le contenu
-        content_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=24, pady=20,
-                               highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        content_card = Theme.create_card(main_frame, padx=24, pady=20)
         content_card.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(content_card, text=f"Version {__version__}", font=Theme.FONTS['body_bold'],
-                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text']).pack(pady=(0, 16))
+        Theme.create_label(content_card, f"Version {__version__}", style='body_bold',
+                          bg=Theme.COLORS['bg_alt']).pack(pady=(0, 16))
 
-        tk.Label(content_card, text="Application de gestion de catalogue\net de calcul de prix de vente.",
+        tk.Label(content_card, text="Application de chiffrage professionnel\net de gestion des approvisionnements.",
                 font=Theme.FONTS['body'], bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                 justify='center').pack()
 
@@ -1082,9 +1016,7 @@ class AboutDialog:
                 font=Theme.FONTS['small'], bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_light'], justify='center').pack(pady=(16, 0))
 
-        tk.Button(content_card, text="Fermer", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['secondary'], fg=Theme.COLORS['white'],
-                 bd=0, padx=28, pady=10, cursor='hand2',
-                 command=dialog.destroy).pack(pady=(24, 0))
+        Theme.create_button(content_card, "Fermer", command=dialog.destroy,
+                           style='secondary', padx=28).pack(pady=(24, 0))
 
         dialog.wait_window()

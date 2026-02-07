@@ -1,7 +1,7 @@
 """
 DestriChiffrage - Application principale
 ========================================
-Application de gestion de catalogue et chiffrage de portes
+Application de chiffrage et approvisionnement professionnel
 """
 
 import tkinter as tk
@@ -24,7 +24,7 @@ def main():
     root = tk.Tk()
 
     # Configuration de base
-    root.title("DestriChiffrage - Catalogue Portes")
+    root.title("DestriChiffrage - Chiffrage et Approvisionnement")
     root.geometry("1280x800")
     root.minsize(1024, 700)
 

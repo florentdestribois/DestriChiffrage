@@ -5,7 +5,7 @@
 ; Informations de base
 AppId={{C8F42A3E-5E4D-4B2C-9A8E-1D2F3C4B5A6E}
 AppName=DestriChiffrage
-AppVersion=1.5.0
+AppVersion=1.6.0
 AppPublisher=Destribois
 AppPublisherURL=https://github.com/florentdestribois/DestriChiffrage
 AppSupportURL=https://github.com/florentdestribois/DestriChiffrage
@@ -15,7 +15,7 @@ DefaultGroupName=DestriChiffrage
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
-OutputBaseFilename=DestriChiffrage-Setup-1.5.0
+OutputBaseFilename=DestriChiffrage-Setup-1.6.0
 SetupIconFile=assets\icon.ico
 Compression=lzma
 SolidCompression=yes

@@ -1,10 +1,24 @@
 # DestriChiffrage
 
-**Version 1.5.0**
+**Version 1.6.0**
 
-Application de gestion de catalogue et de chiffrage de portes avec module Marches Publics.
+Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Refactorisation UI et composants reutilisables (v1.6.0)
+- **Factory methods dans theme.py** : Composants reutilisables pour une UI coherente
+  - `Theme.create_header()` : Headers de fenetres avec titre, icone et sous-titre
+  - `Theme.create_card()` : Cards avec bordures et padding configurables
+  - `Theme.create_button()` : Boutons stylises (primary, secondary, success, danger, ghost)
+  - `Theme.create_label()` : Labels stylises (title, heading, body, muted, etc.)
+  - `Theme.create_entry()` : Champs de saisie avec support placeholder
+  - `Theme.create_treeview()` : Treeview avec scrollbar integree
+  - `Theme.create_separator()` : Separateurs horizontaux/verticaux
+  - `Theme.create_status_badge()` : Badges colores (success, warning, danger, info)
+  - `Theme.create_tooltip()` : Tooltips attachables a tout widget
+- **Code UI simplifie** : Reduction significative du code repetitif dans les dialogues
+- **Maintenabilite amelioree** : Modifications de style globales facilitees
 
 ### Navigation rapide (v1.5.0)
 - **Menu Vente dans le header** : Menu deroulant avec acces direct a l'analyse des ventes et la creation de chantiers

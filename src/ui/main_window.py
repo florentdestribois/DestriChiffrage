@@ -173,7 +173,7 @@ class MainWindow:
 
     def _create_header(self):
         """Cree l'en-tete moderne et elegant"""
-        # Header avec fond sombre
+        # Header avec fond sombre - Utilise un Frame personnalisé car create_header ne convient pas ici
         header = tk.Frame(self.root, bg=Theme.COLORS['primary'], height=70)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
@@ -218,7 +218,7 @@ class MainWindow:
                 font=('Segoe UI', 18, 'bold'), bg=Theme.COLORS['primary'],
                 fg=Theme.COLORS['white']).pack(anchor='w')
 
-        tk.Label(title_frame, text="Catalogue et chiffrage de portes",
+        tk.Label(title_frame, text="Chiffrage et approvisionnement",
                 font=('Segoe UI', 9), bg=Theme.COLORS['primary'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w')
 
@@ -418,13 +418,8 @@ class MainWindow:
         clear_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
         clear_frame.pack(side=tk.LEFT, pady=(12, 0))
 
-        clear_btn = tk.Button(clear_frame, text="Effacer les filtres",
-                             font=Theme.FONTS['small'],
-                             bg=Theme.COLORS['bg_alt'],
-                             fg=Theme.COLORS['text_light'],
-                             activebackground=Theme.COLORS['bg_dark'],
-                             bd=0, padx=12, pady=4, cursor='hand2',
-                             command=self.clear_search)
+        clear_btn = Theme.create_button(clear_frame, "Effacer les filtres", command=self.clear_search,
+                                       style='ghost', padx=12, pady=4)
         clear_btn.pack()
 
     def _create_main_content(self):
@@ -511,34 +506,18 @@ class MainWindow:
         left_btns.pack(side=tk.LEFT)
 
         # Bouton Nouveau
-        add_btn = tk.Button(left_btns, text="+ Nouveau produit",
-                           font=Theme.FONTS['body_bold'],
-                           bg=Theme.COLORS['accent'],
-                           fg=Theme.COLORS['white'],
-                           activebackground=Theme.COLORS['accent_light'],
-                           activeforeground=Theme.COLORS['white'],
-                           bd=0, padx=20, pady=10, cursor='hand2',
-                           command=self.on_add)
+        add_btn = Theme.create_button(left_btns, "+ Nouveau produit", command=self.on_add,
+                                     style='primary')
         add_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         # Bouton Modifier
-        edit_btn = tk.Button(left_btns, text="Modifier",
-                            font=Theme.FONTS['body'],
-                            bg=Theme.COLORS['bg_dark'],
-                            fg=Theme.COLORS['text'],
-                            activebackground=Theme.COLORS['border'],
-                            bd=0, padx=16, pady=10, cursor='hand2',
-                            command=self.on_edit)
+        edit_btn = Theme.create_button(left_btns, "Modifier", command=self.on_edit,
+                                      style='ghost', padx=16)
         edit_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         # Bouton Supprimer
-        del_btn = tk.Button(left_btns, text="Supprimer",
-                           font=Theme.FONTS['body'],
-                           bg=Theme.COLORS['bg_dark'],
-                           fg=Theme.COLORS['danger'],
-                           activebackground=Theme.COLORS['danger_light'],
-                           bd=0, padx=16, pady=10, cursor='hand2',
-                           command=self.on_delete)
+        del_btn = Theme.create_button(left_btns, "Supprimer", command=self.on_delete,
+                                     style='danger', padx=16)
         del_btn.pack(side=tk.LEFT)
 
         # Boutons droite
@@ -546,33 +525,18 @@ class MainWindow:
         right_btns.pack(side=tk.RIGHT)
 
         # Bouton Panier
-        self.cart_btn = tk.Button(right_btns, text="\U0001F4CB Devis rapide (0)",  # 📋
-                                  font=Theme.FONTS['body_bold'],
-                                  bg=Theme.COLORS['secondary'],
-                                  fg=Theme.COLORS['white'],
-                                  activebackground=Theme.COLORS['accent_light'],
-                                  bd=0, padx=16, pady=10, cursor='hand2',
-                                  command=self._show_cart_panel)
+        self.cart_btn = Theme.create_button(right_btns, "\U0001F4CB Devis rapide (0)",
+                                           command=self._show_cart_panel, style='secondary', padx=16)
         self.cart_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         # Bouton Categories
-        cat_btn = tk.Button(right_btns, text="Categories",
-                           font=Theme.FONTS['body'],
-                           bg=Theme.COLORS['bg_dark'],
-                           fg=Theme.COLORS['text'],
-                           activebackground=Theme.COLORS['border'],
-                           bd=0, padx=16, pady=10, cursor='hand2',
-                           command=self.on_manage_categories)
+        cat_btn = Theme.create_button(right_btns, "Categories", command=self.on_manage_categories,
+                                     style='ghost', padx=16)
         cat_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         # Bouton Importer
-        import_btn = tk.Button(right_btns, text="Importer",
-                              font=Theme.FONTS['body'],
-                              bg=Theme.COLORS['bg_dark'],
-                              fg=Theme.COLORS['text'],
-                              activebackground=Theme.COLORS['border'],
-                              bd=0, padx=16, pady=10, cursor='hand2',
-                              command=self.on_import)
+        import_btn = Theme.create_button(right_btns, "Importer", command=self.on_import,
+                                        style='ghost', padx=16)
         import_btn.pack(side=tk.LEFT, padx=(0, 8))
 
     def _create_status_bar(self):

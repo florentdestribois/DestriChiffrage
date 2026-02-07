@@ -1,7 +1,7 @@
 """
-Gestionnaire du panier d'articles
+Gestionnaire du devis rapide d'articles
 
-Ce module gere le panier de selection d'articles pour l'export groupe.
+Ce module gere le devis rapide de selection d'articles pour l'export groupe.
 Utilise le pattern Singleton pour garantir une instance unique.
 """
 
@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 
 class CartManager:
-    """Gestionnaire singleton du panier d'articles"""
+    """Gestionnaire singleton du devis rapide d'articles"""
 
     _instance = None
 
@@ -21,7 +21,7 @@ class CartManager:
         return cls._instance
 
     def __init__(self):
-        """Initialise le panier (une seule fois)"""
+        """Initialise le devis rapide (une seule fois)"""
         if self._initialized:
             return
         self._cart_items: Dict[int, Dict] = {}  # {product_id: product_data}
@@ -41,7 +41,7 @@ class CartManager:
 
     def add_to_cart(self, product: Dict) -> bool:
         """
-        Ajoute un produit au panier
+        Ajoute un produit au devis rapide
 
         Args:
             product: Dictionnaire contenant les donnees du produit
@@ -55,7 +55,7 @@ class CartManager:
             return False
 
         if product_id in self._cart_items:
-            return False  # Deja dans le panier
+            return False  # Deja dans le devis
 
         # Stocker le produit complet
         self._cart_items[product_id] = product.copy()
@@ -63,7 +63,7 @@ class CartManager:
 
     def remove_from_cart(self, product_id: int) -> bool:
         """
-        Retire un produit du panier
+        Retire un produit du devis rapide
 
         Args:
             product_id: ID du produit a retirer
@@ -77,12 +77,12 @@ class CartManager:
         return False
 
     def clear_cart(self) -> None:
-        """Vide completement le panier"""
+        """Vide completement le devis rapide"""
         self._cart_items.clear()
 
     def get_cart_items(self) -> List[Dict]:
         """
-        Retourne la liste des produits dans le panier
+        Retourne la liste des produits dans le devis rapide
 
         Returns:
             Liste des produits (copies pour eviter modifications)
@@ -91,7 +91,7 @@ class CartManager:
 
     def get_cart_count(self) -> int:
         """
-        Retourne le nombre d'articles dans le panier
+        Retourne le nombre d'articles dans le devis rapide
 
         Returns:
             Nombre d'articles
@@ -100,7 +100,7 @@ class CartManager:
 
     def is_in_cart(self, product_id: int) -> bool:
         """
-        Verifie si un produit est deja dans le panier
+        Verifie si un produit est deja dans le devis rapide
 
         Args:
             product_id: ID du produit a verifier
@@ -112,7 +112,7 @@ class CartManager:
 
     def get_total_ht(self) -> float:
         """
-        Calcule le total HT du panier
+        Calcule le total HT du devis rapide
 
         Returns:
             Total en euros HT
@@ -126,7 +126,7 @@ class CartManager:
 
     def get_product_ids(self) -> List[int]:
         """
-        Retourne la liste des IDs des produits dans le panier
+        Retourne la liste des IDs des produits dans le devis rapide
 
         Returns:
             Liste des IDs

@@ -1,7 +1,7 @@
 """
 DestriChiffrage - Module Base de Donnees
 =========================================
-Gestion de la base de donnees SQLite pour le catalogue de portes
+Gestion de la base de donnees SQLite pour le chiffrage et approvisionnement
 """
 
 import sqlite3

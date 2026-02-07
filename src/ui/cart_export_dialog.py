@@ -1,7 +1,7 @@
 """
-Dialogue d'export du panier
+Dialogue d'export du devis rapide
 
-Ce module fournit l'interface pour exporter le panier avec options.
+Ce module fournit l'interface pour exporter le devis rapide avec options.
 """
 
 import tkinter as tk
@@ -21,7 +21,7 @@ from ui.theme import Theme
 
 
 class CartExportDialog(tk.Toplevel):
-    """Dialogue d'export du panier avec options"""
+    """Dialogue d'export du devis rapide avec options"""
 
     def __init__(self, parent, cart_manager: 'CartManager', db: 'Database'):
         """
@@ -29,7 +29,7 @@ class CartExportDialog(tk.Toplevel):
 
         Args:
             parent: Fenetre parente
-            cart_manager: Instance du gestionnaire de panier
+            cart_manager: Instance du gestionnaire de devis rapide
             db: Instance de la base de donnees
         """
         super().__init__(parent)
@@ -38,7 +38,7 @@ class CartExportDialog(tk.Toplevel):
         self.db = db
         self.result = None
 
-        self.title("Exporter le panier")
+        self.title("Exporter le devis rapide")
         self.geometry("550x450")
         self.minsize(530, 430)
         self.transient(parent)
@@ -71,7 +71,7 @@ class CartExportDialog(tk.Toplevel):
         header_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 20))
 
-        tk.Label(header_frame, text="\U0001F4E4 Exporter le panier",  # 📤
+        tk.Label(header_frame, text="\U0001F4E4 Exporter le devis rapide",  # 📤
                 font=Theme.FONTS['title'], bg=Theme.COLORS['bg'],
                 fg=Theme.COLORS['primary']).pack(side=tk.LEFT)
 

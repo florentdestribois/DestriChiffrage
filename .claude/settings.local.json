@@ -58,7 +58,20 @@
       "Bash(gh release create v1.3.4 --title \"Version 1.3.4\" --notes \"$\\(cat <<''EOF''\n# Version 1.3.4\n\n## Nouveautés\n\n- **Import depuis catalogue** : Nouveau bouton dans la vue Chiffrage DPGF pour créer un article directement depuis un produit du catalogue avec liaison automatique\n- **Import DPGF dans vue chiffrage** : Bouton pour importer un fichier DPGF CSV dans le chantier courant\n\n## 📦 Installation\n\n1. Télécharger DestriChiffrage-Setup-1.3.4.exe\n2. Double-cliquer \\(accepter les droits administrateur\\)\n3. Suivre l''assistant d''installation\n4. L''application est installée !\n\n## 🔄 Mise à Jour\n\nL''auto-updater détectera automatiquement cette version depuis l''application.\n\n---\n\n**Taille**: ~27 MB\n**Plateforme**: Windows 10/11 64-bit\n**Droits admin**: Requis pour l''installation\nEOF\n\\)\")",
       "Bash(gh release upload:*)",
       "Bash(gh release view:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(python -m PyInstaller:*)",
+      "Bash(dir \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\dist\\\\DestriChiffrage.exe\")",
+      "Bash(gh release create v1.3.5 --title \"Version 1.3.5\" --notes \"$\\(cat <<''EOF''\n# Version 1.3.5\n\n## 📦 Installation\n\n1. Télécharger DestriChiffrage-Setup-1.3.5.exe\n2. Double-cliquer \\(accepter les droits administrateur\\)\n3. Suivre l''assistant d''installation\n4. L''application est installée !\n\n## 🔄 Mise à Jour\n\nL''auto-updater détectera automatiquement cette version depuis l''application.\n\n---\n\n**Taille**: ~27 MB\n**Plateforme**: Windows 10/11 64-bit\n**Droits admin**: Requis pour l''installation\nEOF\n\\)\")",
+      "Bash(gh release:*)",
+      "Bash(findstr:*)",
+      "Bash(dir \"C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\installer_output\\\\DestriChiffrage-Setup-1.3.5.exe\")",
+      "Bash(powershell -Command \"\\(Get-Item ''C:\\\\Users\\\\tt\\\\Documents\\\\Developpement logiciel\\\\DestriChiffrage\\\\dist\\\\DestriChiffrage.exe''\\).Length / 1MB\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nv1.3.5\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Skill(release)",
+      "Bash(gh release create v1.4.0 --title \"Version 1.4.0\" --notes \"$\\(cat <<''EOF''\n# Version 1.4.0\n\n## 🆕 Nouveautés\n\n### Renommage \"Panier\" → \"Devis rapide\"\n- Le bouton \"🛒 Panier\" devient \"📋 Devis rapide\"\n- Tous les textes de l''interface ont été mis à jour\n- La colonne \"Panier\" devient \"Devis\" dans le tableau\n\n### Export Odoo amélioré\n- La description est maintenant sur la même ligne que l''article\n- Si un champ \"Présentation\" est renseigné, il est exporté sur une seconde ligne\n\n## 📦 Installation\n\n1. Télécharger DestriChiffrage-Setup-1.4.0.exe\n2. Double-cliquer \\(accepter les droits administrateur\\)\n3. Suivre l''assistant d''installation\n4. L''application est installée !\n\n## 🔄 Mise à Jour\n\nL''auto-updater détectera automatiquement cette version depuis l''application.\n\n---\n\n**Taille**: ~27 MB\n**Plateforme**: Windows 10/11 64-bit\n**Droits admin**: Requis pour l''installation\nEOF\n\\)\")",
+      "Bash(timeout /t 2 /nobreak)",
+      "Bash(cmd /c \"taskkill /IM DestriChiffrage.exe /F\")",
+      "Skill(create-github-issue)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 """
-Panneau d'affichage et de gestion du panier
+Panneau d'affichage et de gestion du devis rapide
 
-Ce module fournit l'interface pour visualiser et gerer le panier d'articles.
+Ce module fournit l'interface pour visualiser et gerer le devis rapide d'articles.
 """
 
 import tkinter as tk
@@ -21,15 +21,15 @@ from ui.theme import Theme
 
 
 class CartPanel(tk.Toplevel):
-    """Fenetre de gestion du panier d'articles"""
+    """Fenetre de gestion du devis rapide d'articles"""
 
     def __init__(self, parent, cart_manager: 'CartManager', db: 'Database', on_export_callback=None):
         """
-        Initialise le panneau du panier
+        Initialise le panneau du devis rapide
 
         Args:
             parent: Fenetre parente
-            cart_manager: Instance du gestionnaire de panier
+            cart_manager: Instance du gestionnaire de devis rapide
             db: Instance de la base de donnees
             on_export_callback: Fonction appelee lors de l'export (optionnel)
         """
@@ -39,7 +39,7 @@ class CartPanel(tk.Toplevel):
         self.db = db
         self.on_export_callback = on_export_callback
 
-        self.title("Panier d'articles")
+        self.title("Devis rapide")
         self.geometry("700x500")
         self.minsize(650, 450)
         self.transient(parent)
@@ -65,7 +65,7 @@ class CartPanel(tk.Toplevel):
         header_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 15))
 
-        tk.Label(header_frame, text="\U0001F6D2 Panier d'articles",  # 🛒
+        tk.Label(header_frame, text="\U0001F4CB Devis rapide",  # 📋
                 font=Theme.FONTS['title'], bg=Theme.COLORS['bg'],
                 fg=Theme.COLORS['primary']).pack(side=tk.LEFT)
 
@@ -128,7 +128,7 @@ class CartPanel(tk.Toplevel):
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
         btn_frame.pack(fill=tk.X)
 
-        tk.Button(btn_frame, text="Vider le panier",
+        tk.Button(btn_frame, text="Vider le devis",
                  font=Theme.FONTS['body'], bg=Theme.COLORS['danger'],
                  fg=Theme.COLORS['white'], bd=0, padx=15, pady=8,
                  cursor='hand2', command=self._on_clear_cart).pack(side=tk.LEFT, padx=(0, 10))
@@ -144,7 +144,7 @@ class CartPanel(tk.Toplevel):
                  cursor='hand2', command=self._on_export).pack(side=tk.RIGHT, padx=(0, 10))
 
     def _refresh_cart(self):
-        """Rafraichit l'affichage du panier"""
+        """Rafraichit l'affichage du devis rapide"""
         # Vider le tree
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -181,8 +181,8 @@ class CartPanel(tk.Toplevel):
         designation = item['values'][1]
 
         response = messagebox.askyesno(
-            "Retirer du panier",
-            f"Retirer cet article du panier ?\n\n{designation}"
+            "Retirer du devis",
+            f"Retirer cet article du devis ?\n\n{designation}"
         )
 
         if response:
@@ -198,14 +198,14 @@ class CartPanel(tk.Toplevel):
             self._on_double_click(None)
 
     def _on_clear_cart(self):
-        """Vide completement le panier"""
+        """Vide completement le devis rapide"""
         if self.cart_manager.get_cart_count() == 0:
-            messagebox.showinfo("Panier vide", "Le panier est deja vide.")
+            messagebox.showinfo("Devis vide", "Le devis est deja vide.")
             return
 
         response = messagebox.askyesno(
-            "Vider le panier",
-            f"Voulez-vous vraiment vider le panier ?\n\n"
+            "Vider le devis",
+            f"Voulez-vous vraiment vider le devis ?\n\n"
             f"{self.cart_manager.get_cart_count()} article(s) seront retires."
         )
 
@@ -214,10 +214,10 @@ class CartPanel(tk.Toplevel):
             self._refresh_cart()
 
     def _on_export(self):
-        """Lance l'export du panier"""
+        """Lance l'export du devis rapide"""
         if self.cart_manager.get_cart_count() == 0:
-            messagebox.showwarning("Panier vide",
-                                  "Le panier est vide. Ajoutez des articles avant d'exporter.")
+            messagebox.showwarning("Devis vide",
+                                  "Le devis est vide. Ajoutez des articles avant d'exporter.")
             return
 
         # Fermer cette fenetre et appeler le callback d'export

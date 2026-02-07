@@ -49,22 +49,14 @@ class DPGFImportDialog:
     def _create_widgets(self):
         """Cree les widgets du formulaire"""
         # Header
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="Nouveau chantier / Import DPGF",
-                font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'],
-                fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        Theme.create_header(self.dialog, "Nouveau chantier / Import DPGF", icon="📁")
 
         # Main frame avec scroll
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card - Informations chantier
-        info_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        info_card = Theme.create_card(main_frame)
         info_card.pack(fill=tk.X, pady=(0, 16))
 
         tk.Label(info_card, text="INFORMATIONS DU CHANTIER",
@@ -171,8 +163,7 @@ class DPGFImportDialog:
         self.notes_text.pack(fill=tk.X, pady=(4, 0))
 
         # Card - Import DPGF
-        import_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                              highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        import_card = Theme.create_card(main_frame)
         import_card.pack(fill=tk.X, pady=(0, 16))
 
         tk.Label(import_card, text="IMPORT DPGF (OPTIONNEL)",
@@ -197,10 +188,8 @@ class DPGFImportDialog:
                                   bd=1, relief='solid')
         self.file_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        tk.Button(entry_frame, text="Parcourir...", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=16, pady=6, cursor='hand2',
-                 command=self._browse_file).pack(side=tk.LEFT, padx=(8, 0))
+        Theme.create_button(entry_frame, "Parcourir...", command=self._browse_file,
+                           style='ghost', padx=16, pady=6).pack(side=tk.LEFT, padx=(8, 0))
 
         # Info format
         tk.Label(import_card,
@@ -211,26 +200,17 @@ class DPGFImportDialog:
                 wraplength=600).pack(anchor='w', pady=(12, 0))
 
         # Bouton template
-        tk.Button(import_card, text="Telecharger le modele DPGF",
-                 font=Theme.FONTS['small'],
-                 bg=Theme.COLORS['secondary'],
-                 fg=Theme.COLORS['white'],
-                 bd=0, padx=12, pady=4, cursor='hand2',
-                 command=self._download_template).pack(anchor='w', pady=(8, 0))
+        Theme.create_button(import_card, "Telecharger le modele DPGF", command=self._download_template,
+                           style='secondary', padx=12, pady=4).pack(anchor='w', pady=(8, 0))
 
         # Boutons action
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(16, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Creer le chantier", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Creer le chantier", command=self._save,
+                           style='primary', padx=24).pack(side=tk.RIGHT)
 
     def _browse_file(self):
         """Ouvre le dialogue de selection de fichier"""
@@ -348,22 +328,14 @@ class ChantierEditDialog:
     def _create_widgets(self):
         """Cree les widgets"""
         # Header
-        header = tk.Frame(self.dialog, bg=Theme.COLORS['primary'], height=60)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
-
-        tk.Label(header, text="Modifier le chantier",
-                font=Theme.FONTS['heading'],
-                bg=Theme.COLORS['primary'],
-                fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
+        Theme.create_header(self.dialog, "Modifier le chantier", icon="✏️")
 
         # Main frame
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Card - Informations
-        info_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        info_card = Theme.create_card(main_frame)
         info_card.pack(fill=tk.X)
 
         self.entries = {}
@@ -420,15 +392,10 @@ class ChantierEditDialog:
         btn_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=50)
         btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        tk.Button(btn_frame, text="Annuler", font=Theme.FONTS['body'],
-                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self.dialog.destroy).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(btn_frame, text="Enregistrer", font=Theme.FONTS['body_bold'],
-                 bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=24, pady=10, cursor='hand2',
-                 command=self._save).pack(side=tk.RIGHT)
+        Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
+                           style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
+        Theme.create_button(btn_frame, "Enregistrer", command=self._save,
+                           style='primary', padx=24).pack(side=tk.RIGHT)
 
     def _get_type_marche_key(self):
         """Retourne la cle du type de marche selectionne"""
