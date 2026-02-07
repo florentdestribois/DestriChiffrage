@@ -25,7 +25,13 @@ def main():
 
     # Configuration de base
     root.title("DestriChiffrage - Chiffrage et Approvisionnement")
-    root.geometry("1280x800")
+
+    # Ouvrir en pleine hauteur d'ecran
+    root.update_idletasks()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    window_height = screen_height - 80  # Marge pour la barre des taches
+    root.geometry(f"1280x{window_height}")
     root.minsize(1024, 700)
 
     # Icone (si disponible)
@@ -33,13 +39,9 @@ def main():
     if os.path.exists(icon_path):
         root.iconbitmap(icon_path)
 
-    # Centrer la fenetre
-    root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
-    x = (root.winfo_screenwidth() // 2) - (width // 2)
-    y = (root.winfo_screenheight() // 2) - (height // 2)
-    root.geometry(f'+{x}+{y}')
+    # Centrer horizontalement, en haut de l'ecran
+    x = (screen_width - 1280) // 2
+    root.geometry(f"1280x{window_height}+{x}+10")
 
     # Appliquer le theme
     Theme.apply(root)

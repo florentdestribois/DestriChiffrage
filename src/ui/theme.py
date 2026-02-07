@@ -11,60 +11,62 @@ from tkinter import ttk
 class Theme:
     """Gestionnaire de theme Destribois moderne"""
 
-    # Palette de couleurs moderne Destribois
+    # Palette de couleurs Destribois 2024 - Style épuré et minimaliste
     COLORS = {
-        # Couleurs principales
-        'primary': '#1E293B',           # Slate 800 - Header sombre elegant
-        'primary_light': '#334155',     # Slate 700
-        'primary_dark': '#0F172A',      # Slate 900
+        # Couleurs principales (Charte graphique Destribois 2024)
+        'primary': '#2E3544',           # Bleu-gris Destribois - Headers
+        'primary_light': '#3D4556',     # Bleu-gris clair (hover)
+        'primary_dark': '#1F252F',      # Bleu-gris foncé
 
-        'secondary': '#B8860B',         # Or Destribois - DarkGoldenrod
-        'secondary_light': '#DAA520',   # Goldenrod
-        'secondary_dark': '#8B6914',    # Or fonce
+        'secondary': '#AE9367',         # Or Destribois 2024
+        'secondary_light': '#C4AB82',   # Or clair (hover)
+        'secondary_dark': '#8A7652',    # Or foncé
 
-        'accent': '#2563EB',            # Bleu moderne
-        'accent_light': '#3B82F6',      # Bleu clair
-        'accent_dark': '#1D4ED8',       # Bleu fonce
+        'accent': '#3B7A57',            # Vert forêt élégant
+        'accent_light': '#4A9068',      # Vert clair (hover)
+        'accent_dark': '#2D5F44',       # Vert foncé
 
-        # Couleurs de fond
-        'bg': '#F8FAFC',                # Slate 50 - Fond principal clair
+        # Couleurs de fond (basées sur #EDE6DC)
+        'bg': '#F7F5F2',                # Beige très clair - Fond principal
         'bg_alt': '#FFFFFF',            # Blanc pur - Cards
-        'bg_dark': '#E2E8F0',           # Slate 200 - Fond secondaire
-        'bg_header': '#1E293B',         # Header sombre
+        'bg_dark': '#EDE6DC',           # Beige Destribois - Fond secondaire
+        'bg_header': '#2E3544',         # Header Destribois
 
         # Couleurs de statut
-        'success': '#059669',           # Emerald 600
-        'success_light': '#D1FAE5',     # Emerald 100
-        'warning': '#D97706',           # Amber 600
-        'warning_light': '#FEF3C7',     # Amber 100
-        'danger': '#DC2626',            # Red 600
-        'danger_light': '#FEE2E2',      # Red 100
+        'success': '#3B7A57',           # Vert forêt
+        'success_light': '#E8F0EB',     # Vert très clair
+        'warning': '#C4933F',           # Or bronze
+        'warning_light': '#FDF6E8',     # Crème
+        'danger': '#B85450',            # Rouge brique élégant
+        'danger_light': '#F8EAEA',      # Rose pâle
 
         # Couleurs de texte
-        'text': '#1E293B',              # Slate 800
-        'text_light': '#64748B',        # Slate 500
-        'text_muted': '#94A3B8',        # Slate 400
+        'text': '#2E3544',              # Bleu-gris Destribois
+        'text_light': '#5A6270',        # Gris moyen
+        'text_muted': '#8A8F98',        # Gris clair
         'white': '#FFFFFF',
 
         # Bordures
-        'border': '#E2E8F0',            # Slate 200
-        'border_light': '#F1F5F9',      # Slate 100
-        'border_focus': '#2563EB',      # Bleu accent
+        'border': '#DDD8D0',            # Beige bordure
+        'border_light': '#EDE6DC',      # Beige clair
+        'border_focus': '#AE9367',      # Or Destribois
     }
 
-    # Polices modernes
+    # Polices Destribois 2024
+    # - Abhaya Libre : Titres (élégant, avec serif)
+    # - Roboto : Corps de texte (lisibilité optimale)
     FONTS = {
-        'title': ('Segoe UI', 22, 'bold'),
-        'heading': ('Segoe UI', 14, 'bold'),
-        'subheading': ('Segoe UI Semibold', 11),
-        'body': ('Segoe UI', 10),
-        'body_bold': ('Segoe UI Semibold', 10),
-        'small': ('Segoe UI', 9),
-        'small_bold': ('Segoe UI Semibold', 9),
-        'tiny': ('Segoe UI', 8),
-        'mono': ('Consolas', 10),
-        'mono_bold': ('Consolas', 10, 'bold'),
-        'data': ('Consolas', 11),
+        'title': ('Abhaya Libre', 26, 'bold'),
+        'heading': ('Abhaya Libre SemiBold', 16),
+        'subheading': ('Roboto Medium', 12),
+        'body': ('Roboto', 11),
+        'body_bold': ('Roboto Medium', 11),
+        'small': ('Roboto', 10),
+        'small_bold': ('Roboto Medium', 10),
+        'tiny': ('Roboto', 9),
+        'mono': ('Consolas', 11),
+        'mono_bold': ('Consolas', 11, 'bold'),
+        'data': ('Consolas', 12),
     }
 
     @classmethod
@@ -148,14 +150,14 @@ class Theme:
                        foreground=cls.COLORS['white'],
                        font=cls.FONTS['body_bold'])
         style.map('Success.TButton',
-                 background=[('active', '#10B981')])
+                 background=[('active', cls.COLORS['accent_light'])])
 
         # Bouton Danger
         style.configure('Danger.TButton',
                        background=cls.COLORS['danger'],
                        foreground=cls.COLORS['white'])
         style.map('Danger.TButton',
-                 background=[('active', '#EF4444')])
+                 background=[('active', '#C86560')])
 
         # Bouton Ghost (transparent)
         style.configure('Ghost.TButton',
@@ -184,28 +186,28 @@ class Theme:
                  fieldbackground=[('readonly', cls.COLORS['bg_alt'])],
                  bordercolor=[('focus', cls.COLORS['accent'])])
 
-        # Treeview moderne
+        # Treeview moderne et épuré
         style.configure('Treeview',
                        background=cls.COLORS['bg_alt'],
                        foreground=cls.COLORS['text'],
                        fieldbackground=cls.COLORS['bg_alt'],
-                       rowheight=40,
+                       rowheight=44,
                        font=cls.FONTS['body'],
                        borderwidth=0)
 
         style.configure('Treeview.Heading',
-                       background=cls.COLORS['bg_dark'],
-                       foreground=cls.COLORS['text'],
+                       background=cls.COLORS['primary'],
+                       foreground=cls.COLORS['white'],
                        font=cls.FONTS['small_bold'],
-                       padding=12,
+                       padding=14,
                        borderwidth=0)
 
         style.map('Treeview.Heading',
-                 background=[('active', cls.COLORS['border'])])
+                 background=[('active', cls.COLORS['primary_light'])])
 
         style.map('Treeview',
-                 background=[('selected', cls.COLORS['accent'])],
-                 foreground=[('selected', cls.COLORS['white'])])
+                 background=[('selected', cls.COLORS['bg_dark'])],
+                 foreground=[('selected', cls.COLORS['text'])])
 
         # LabelFrame
         style.configure('TLabelframe',
@@ -217,21 +219,22 @@ class Theme:
                        foreground=cls.COLORS['text_light'],
                        background=cls.COLORS['bg_alt'])
 
-        # Notebook (onglets)
+        # Notebook (onglets) - Style épuré
         style.configure('TNotebook',
                        background=cls.COLORS['bg'],
                        borderwidth=0,
-                       tabmargins=[0, 0, 0, 0])
+                       tabmargins=[2, 8, 2, 0])
 
         style.configure('TNotebook.Tab',
-                       padding=(20, 10),
+                       padding=(24, 12),
                        font=cls.FONTS['body'],
-                       background=cls.COLORS['bg'],
+                       background=cls.COLORS['bg_dark'],
                        foreground=cls.COLORS['text_light'])
 
         style.map('TNotebook.Tab',
-                 background=[('selected', cls.COLORS['bg_alt'])],
-                 foreground=[('selected', cls.COLORS['text'])])
+                 background=[('selected', cls.COLORS['bg_alt']),
+                            ('active', cls.COLORS['border'])],
+                 foreground=[('selected', cls.COLORS['primary'])])
 
         # Scrollbar moderne
         style.configure('Vertical.TScrollbar',
@@ -400,23 +403,31 @@ class Theme:
             'success': {
                 'bg': cls.COLORS['success'],
                 'fg': cls.COLORS['white'],
-                'active_bg': '#10B981',
+                'active_bg': cls.COLORS['accent_light'],
                 'font': cls.FONTS['body_bold'],
                 'padx': 16,
-                'pady': 8
+                'pady': 10
             },
             'danger': {
                 'bg': cls.COLORS['danger'],
                 'fg': cls.COLORS['white'],
-                'active_bg': '#EF4444',
+                'active_bg': '#C86560',
                 'font': cls.FONTS['body'],
-                'padx': 15,
-                'pady': 8
+                'padx': 16,
+                'pady': 10
             },
             'ghost': {
                 'bg': cls.COLORS['bg'],
                 'fg': cls.COLORS['text_light'],
                 'active_bg': cls.COLORS['bg_dark'],
+                'font': cls.FONTS['body'],
+                'padx': 12,
+                'pady': 6
+            },
+            'danger-ghost': {
+                'bg': cls.COLORS['bg'],
+                'fg': cls.COLORS['danger'],
+                'active_bg': cls.COLORS['danger_light'],
                 'font': cls.FONTS['body'],
                 'padx': 12,
                 'pady': 6

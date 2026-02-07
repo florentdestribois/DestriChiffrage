@@ -86,16 +86,16 @@ class DPGFChiffrageView:
                 fg=Theme.COLORS['secondary']).pack(side=tk.LEFT)
 
         Theme.create_button(articles_header, "+ Ajouter article", command=self._add_article,
-                           style='primary', padx=12, pady=4).pack(side=tk.RIGHT)
+                           style='secondary', padx=12, pady=4).pack(side=tk.RIGHT)
 
         Theme.create_button(articles_header, "Import catalogue", command=self._import_from_catalog,
-                           style='secondary', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
+                           style='ghost', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
         Theme.create_button(articles_header, "Import DPGF", command=self._import_dpgf,
                            style='ghost', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
         Theme.create_button(articles_header, "Supprimer", command=self._delete_article,
-                           style='danger', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
+                           style='danger-ghost', padx=12, pady=4).pack(side=tk.RIGHT, padx=(0, 8))
 
         # Tableau articles
         table_frame = Theme.create_card(left_frame, padx=0, pady=0)
@@ -129,6 +129,7 @@ class DPGFChiffrageView:
         self.articles_tree.bind('<<TreeviewSelect>>', self._on_article_select)
         self.articles_tree.bind('<Delete>', lambda e: self._delete_article())
         self.articles_tree.bind('<Button-3>', self._show_article_context_menu)
+        self.articles_tree.bind('<Button-1>', self._on_tree_click)
 
         # Menu contextuel pour les articles
         self.article_context_menu = tk.Menu(self.articles_tree, tearoff=0)
@@ -166,13 +167,10 @@ class DPGFChiffrageView:
         self.detail_card = Theme.create_card(right_frame, padx=16, pady=16)
         self.detail_card.pack(fill=tk.BOTH, expand=True)
 
-        # Message initial
-        self.no_selection_label = tk.Label(self.detail_card,
-                                          text="Selectionnez un article pour voir le detail",
-                                          font=Theme.FONTS['body'],
-                                          bg=Theme.COLORS['bg_alt'],
-                                          fg=Theme.COLORS['text_muted'])
-        self.no_selection_label.pack(expand=True)
+        # Frame recapitulatif projet (affiche quand aucun article selectionne)
+        self.recap_frame = tk.Frame(self.detail_card, bg=Theme.COLORS['bg_alt'])
+        self._create_recap_widgets()
+        self.recap_frame.pack(fill=tk.BOTH, expand=True)
 
         # Frame de detail (cache au debut)
         self.detail_content = tk.Frame(self.detail_card, bg=Theme.COLORS['bg_alt'])
@@ -187,10 +185,183 @@ class DPGFChiffrageView:
                            style='ghost').pack(side=tk.LEFT)
 
         Theme.create_button(action_bar, "Exporter DPGF", command=self._export_dpgf,
-                           style='primary').pack(side=tk.RIGHT)
+                           style='secondary').pack(side=tk.RIGHT)
 
         Theme.create_button(action_bar, "Resultat marche", command=self._set_resultat,
-                           style='secondary').pack(side=tk.RIGHT, padx=(0, 8))
+                           style='ghost').pack(side=tk.RIGHT, padx=(0, 8))
+
+    def _create_recap_widgets(self):
+        """Cree les widgets du recapitulatif projet"""
+        # Titre
+        tk.Label(self.recap_frame, text="RECAPITULATIF PROJET",
+                font=Theme.FONTS['subheading'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 16))
+
+        # Section marge projet
+        marge_frame = tk.Frame(self.recap_frame, bg=Theme.COLORS['bg_alt'])
+        marge_frame.pack(fill=tk.X, pady=(0, 16))
+
+        tk.Label(marge_frame, text="Marge produits (%)",
+                font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).pack(side=tk.LEFT)
+
+        self.marge_entry = tk.Entry(marge_frame, width=8,
+                                   font=Theme.FONTS['body'],
+                                   bg=Theme.COLORS['bg'],
+                                   fg=Theme.COLORS['text'],
+                                   bd=1, relief='solid')
+        self.marge_entry.pack(side=tk.LEFT, padx=(8, 8))
+
+        Theme.create_button(marge_frame, "Appliquer", command=self._apply_marge_projet,
+                           style='secondary', padx=12, pady=4).pack(side=tk.LEFT)
+
+        tk.Label(marge_frame, text="(applique a tous les articles)",
+                font=Theme.FONTS['tiny'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT, padx=(8, 0))
+
+        ttk.Separator(self.recap_frame, orient='horizontal').pack(fill=tk.X, pady=12)
+
+        # Section heures
+        tk.Label(self.recap_frame, text="MAIN D'OEUVRE",
+                font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 8))
+
+        self.recap_heures = {}
+        heures_frame = tk.Frame(self.recap_frame, bg=Theme.COLORS['bg_alt'])
+        heures_frame.pack(fill=tk.X, pady=(0, 12))
+
+        for key, label in [('conception', 'Conception'), ('fabrication', 'Fabrication'),
+                          ('pose', 'Pose'), ('total', 'TOTAL')]:
+            row = tk.Frame(heures_frame, bg=Theme.COLORS['bg_alt'])
+            row.pack(fill=tk.X, pady=2)
+
+            font = Theme.FONTS['body_bold'] if key == 'total' else Theme.FONTS['body']
+            fg = Theme.COLORS['text'] if key == 'total' else Theme.COLORS['text_light']
+
+            tk.Label(row, text=label, font=font,
+                    bg=Theme.COLORS['bg_alt'], fg=fg,
+                    width=15, anchor='w').pack(side=tk.LEFT)
+
+            self.recap_heures[key] = tk.Label(row, text="0 h",
+                                             font=font,
+                                             bg=Theme.COLORS['bg_alt'],
+                                             fg=Theme.COLORS['text'],
+                                             anchor='e')
+            self.recap_heures[key].pack(side=tk.RIGHT)
+
+        ttk.Separator(self.recap_frame, orient='horizontal').pack(fill=tk.X, pady=12)
+
+        # Section couts
+        tk.Label(self.recap_frame, text="COUTS ET PRIX",
+                font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 8))
+
+        self.recap_couts = {}
+        couts_frame = tk.Frame(self.recap_frame, bg=Theme.COLORS['bg_alt'])
+        couts_frame.pack(fill=tk.X, pady=(0, 12))
+
+        for key, label in [('nb_articles', 'Nombre d\'articles'),
+                          ('cout_materiaux', 'Cout materiaux'),
+                          ('cout_mo', 'Cout main d\'oeuvre'),
+                          ('cout_revient', 'Cout de revient'),
+                          ('prix_total', 'PRIX TOTAL HT'),
+                          ('marge_globale', 'Marge globale')]:
+            row = tk.Frame(couts_frame, bg=Theme.COLORS['bg_alt'])
+            row.pack(fill=tk.X, pady=2)
+
+            is_total = key == 'prix_total'
+            is_marge = key == 'marge_globale'
+            font = Theme.FONTS['body_bold'] if is_total else Theme.FONTS['body']
+            fg = Theme.COLORS['secondary'] if is_total else Theme.COLORS['text_light']
+
+            tk.Label(row, text=label, font=font,
+                    bg=Theme.COLORS['bg_alt'], fg=fg,
+                    width=20, anchor='w').pack(side=tk.LEFT)
+
+            self.recap_couts[key] = tk.Label(row, text="-",
+                                            font=font,
+                                            bg=Theme.COLORS['bg_alt'],
+                                            fg=Theme.COLORS['secondary'] if is_total else (
+                                                Theme.COLORS['success'] if is_marge else Theme.COLORS['text']),
+                                            anchor='e')
+            self.recap_couts[key].pack(side=tk.RIGHT)
+
+        # Conseil
+        ttk.Separator(self.recap_frame, orient='horizontal').pack(fill=tk.X, pady=12)
+
+        tk.Label(self.recap_frame, text="Selectionnez un article dans la liste\npour voir son detail et le modifier.",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted'],
+                justify='center').pack(expand=True)
+
+    def _update_recap(self):
+        """Met a jour l'affichage du recapitulatif projet"""
+        recap = self.db.get_chantier_recap(self.chantier_id)
+
+        # Marge dans le champ de saisie
+        marge_projet = recap.get('marge_projet')
+        if marge_projet is not None:
+            self.marge_entry.delete(0, tk.END)
+            self.marge_entry.insert(0, str(int(marge_projet)))
+        else:
+            # Utiliser la marge par defaut
+            marge_defaut = self.db.get_parametre('marge_marche', '25')
+            self.marge_entry.delete(0, tk.END)
+            self.marge_entry.insert(0, marge_defaut)
+
+        # Heures
+        self.recap_heures['conception'].config(text=f"{recap['h_conception']:.1f} h")
+        self.recap_heures['fabrication'].config(text=f"{recap['h_fabrication']:.1f} h")
+        self.recap_heures['pose'].config(text=f"{recap['h_pose']:.1f} h")
+        self.recap_heures['total'].config(text=f"{recap['h_total']:.1f} h")
+
+        # Couts
+        self.recap_couts['nb_articles'].config(text=str(recap['nb_articles']))
+        self.recap_couts['cout_materiaux'].config(text=f"{recap['cout_materiaux']:.2f} EUR")
+        self.recap_couts['cout_mo'].config(text=f"{recap['cout_mo']:.2f} EUR")
+        self.recap_couts['cout_revient'].config(text=f"{recap['cout_revient']:.2f} EUR")
+        self.recap_couts['prix_total'].config(text=f"{recap['prix_total']:.2f} EUR")
+
+        # Marge globale avec couleur
+        marge = recap['marge_globale']
+        color = Theme.COLORS['success'] if marge >= 20 else (
+            Theme.COLORS['warning'] if marge >= 10 else Theme.COLORS['danger'])
+        self.recap_couts['marge_globale'].config(text=f"{marge:.1f} %", fg=color)
+
+    def _apply_marge_projet(self):
+        """Applique la marge projet a tous les articles"""
+        try:
+            marge = float(self.marge_entry.get().replace(',', '.'))
+            if marge < 0 or marge > 100:
+                messagebox.showwarning("Attention", "La marge doit etre entre 0 et 100%")
+                return
+
+            # Confirmer l'action
+            nb_articles = len(self.db.get_articles_dpgf(self.chantier_id))
+            if nb_articles > 0:
+                if not messagebox.askyesno("Confirmer",
+                    f"Appliquer une marge de {marge:.0f}% a tous les {nb_articles} articles ?\n\n"
+                    "Cette action recalculera tous les prix."):
+                    return
+
+            # Appliquer
+            self.db.set_chantier_marge_projet(self.chantier_id, marge)
+
+            # Rafraichir
+            self._load_articles()
+            self._update_recap()
+            self._update_total()
+
+            messagebox.showinfo("Succes", f"Marge de {marge:.0f}% appliquee a tous les articles.")
+
+        except ValueError:
+            messagebox.showerror("Erreur", "Veuillez entrer un nombre valide")
 
     def _create_detail_widgets(self):
         """Cree les widgets du panneau de detail"""
@@ -264,7 +435,7 @@ class DPGFChiffrageView:
                 fg=Theme.COLORS['secondary']).pack(side=tk.LEFT)
 
         Theme.create_button(produits_header, "+ Ajouter", command=self._add_produit,
-                           style='primary', padx=8, pady=2).pack(side=tk.RIGHT)
+                           style='secondary', padx=8, pady=2).pack(side=tk.RIGHT)
 
         # Liste produits
         produits_frame = Theme.create_card(self.detail_content, padx=0, pady=0,
@@ -306,7 +477,7 @@ class DPGFChiffrageView:
 
         # Bouton supprimer produit
         Theme.create_button(self.detail_content, "Retirer le produit selectionne",
-                           command=self._remove_produit, style='danger',
+                           command=self._remove_produit, style='danger-ghost',
                            padx=8, pady=2).pack(anchor='e', pady=(0, 8))
 
         ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=8)
@@ -436,18 +607,46 @@ class DPGFChiffrageView:
 
         self.total_label.config(text=f"Total: {total:.2f} EUR HT")
 
+        # Mettre a jour le recap si visible
+        if not self.current_article_id:
+            self._update_recap()
+
+    def _show_recap(self):
+        """Affiche le recapitulatif projet"""
+        self.current_article_id = None
+        self.detail_content.pack_forget()
+        self.recap_frame.pack(fill=tk.BOTH, expand=True)
+        self._update_recap()
+
+    def _update_total(self):
+        """Met a jour le total affiche dans le header"""
+        articles = self.db.get_articles_dpgf(self.chantier_id)
+        total = sum(a['prix_total_ht'] for a in articles)
+        self.total_label.config(text=f"Total: {total:.2f} EUR HT")
+
+    def _on_tree_click(self, event):
+        """Gere le clic sur le treeview - deselectionne si clic sur zone vide"""
+        item = self.articles_tree.identify_row(event.y)
+        if not item:
+            # Clic sur zone vide - deselectionner
+            self.articles_tree.selection_remove(self.articles_tree.selection())
+            self.current_article_id = None
+            self._show_recap()
+
     def _on_article_select(self, event=None):
         """Selection d'un article"""
         selection = self.articles_tree.selection()
         if not selection:
+            # Aucune selection - afficher le recap
+            self._show_recap()
             return
 
         item = self.articles_tree.item(selection[0])
         article_id = item['values'][0]
         self.current_article_id = article_id
 
-        # Afficher le detail
-        self.no_selection_label.pack_forget()
+        # Afficher le detail (cacher le recap)
+        self.recap_frame.pack_forget()
         self.detail_content.pack(fill=tk.BOTH, expand=True)
 
         # Charger les donnees
@@ -1113,7 +1312,7 @@ class ArticleDialog:
         Theme.create_button(btn_frame, "Annuler", command=self.dialog.destroy,
                            style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
         Theme.create_button(btn_frame, "Enregistrer", command=self._save,
-                           style='primary', padx=24).pack(side=tk.RIGHT)
+                           style='secondary', padx=24).pack(side=tk.RIGHT)
 
     def _save(self):
         """Enregistre l'article"""

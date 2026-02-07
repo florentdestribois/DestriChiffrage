@@ -505,19 +505,19 @@ class MainWindow:
         left_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
         left_btns.pack(side=tk.LEFT)
 
-        # Bouton Nouveau
+        # Bouton Nouveau - Action principale en Or Destribois
         add_btn = Theme.create_button(left_btns, "+ Nouveau produit", command=self.on_add,
-                                     style='primary')
+                                     style='secondary')
         add_btn.pack(side=tk.LEFT, padx=(0, 8))
 
-        # Bouton Modifier
+        # Bouton Modifier - Style discret
         edit_btn = Theme.create_button(left_btns, "Modifier", command=self.on_edit,
                                       style='ghost', padx=16)
         edit_btn.pack(side=tk.LEFT, padx=(0, 8))
 
-        # Bouton Supprimer
+        # Bouton Supprimer - Ghost avec texte rouge discret
         del_btn = Theme.create_button(left_btns, "Supprimer", command=self.on_delete,
-                                     style='danger', padx=16)
+                                     style='danger-ghost', padx=16)
         del_btn.pack(side=tk.LEFT)
 
         # Boutons droite
@@ -1122,8 +1122,8 @@ Prix max: {stats['prix_max']:.2f} EUR
         # Dialogue personnalise avec cases a cocher
         dialog = tk.Toplevel(self.root)
         dialog.title("Vider la base de donnees")
-        dialog.geometry("450x340")
-        dialog.minsize(430, 320)
+        dialog.geometry("450x420")
+        dialog.minsize(430, 400)
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)

@@ -187,6 +187,7 @@ class Database:
                 type_projet TEXT,
                 lot TEXT,
                 montant_ht REAL DEFAULT 0,
+                marge_projet REAL,
                 resultat TEXT DEFAULT 'EN_COURS',
                 concurrent TEXT,
                 montant_concurrent REAL,
@@ -315,6 +316,19 @@ class Database:
                 ''', (nom, desc, couleur, ordre))
 
         self.conn.commit()
+
+        # Migration: ajouter marge_projet si elle n'existe pas
+        self._migrate_chantiers_marge_projet()
+
+    def _migrate_chantiers_marge_projet(self):
+        """Ajoute la colonne marge_projet aux chantiers existants"""
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("SELECT marge_projet FROM chantiers LIMIT 1")
+        except sqlite3.OperationalError:
+            # La colonne n'existe pas, on l'ajoute
+            cursor.execute("ALTER TABLE chantiers ADD COLUMN marge_projet REAL")
+            self.conn.commit()
 
     # ==================== PARAMETRES ====================
 
@@ -1373,6 +1387,83 @@ class Database:
             WHERE id = ?
         ''', (total, chantier_id))
         self.conn.commit()
+
+    def get_chantier_recap(self, chantier_id: int) -> Dict:
+        """Calcule le recapitulatif complet d'un chantier
+
+        Returns:
+            Dict avec: nb_articles, total_heures_*, total_cout_*, total_prix, marge_globale
+        """
+        cursor = self.conn.cursor()
+
+        # Compter les articles
+        cursor.execute("SELECT COUNT(*) as cnt FROM prix_marche WHERE chantier_id = ?", (chantier_id,))
+        nb_articles = cursor.fetchone()['cnt']
+
+        # Sommes des articles
+        cursor.execute('''
+            SELECT
+                SUM(temps_conception) as h_conception,
+                SUM(temps_fabrication) as h_fabrication,
+                SUM(temps_pose) as h_pose,
+                SUM(cout_materiaux) as cout_materiaux,
+                SUM(cout_mo_total) as cout_mo,
+                SUM(cout_revient) as cout_revient,
+                SUM(prix_total_ht) as prix_total
+            FROM prix_marche WHERE chantier_id = ?
+        ''', (chantier_id,))
+        row = cursor.fetchone()
+
+        h_conception = row['h_conception'] or 0
+        h_fabrication = row['h_fabrication'] or 0
+        h_pose = row['h_pose'] or 0
+        cout_materiaux = row['cout_materiaux'] or 0
+        cout_mo = row['cout_mo'] or 0
+        cout_revient = row['cout_revient'] or 0
+        prix_total = row['prix_total'] or 0
+
+        # Calculer la marge globale
+        marge_globale = ((prix_total - cout_revient) / cout_revient * 100) if cout_revient > 0 else 0
+
+        # Recuperer la marge projet personnalisee
+        chantier = self.get_chantier(chantier_id)
+        marge_projet = chantier.get('marge_projet') if chantier else None
+
+        return {
+            'nb_articles': nb_articles,
+            'h_conception': h_conception,
+            'h_fabrication': h_fabrication,
+            'h_pose': h_pose,
+            'h_total': h_conception + h_fabrication + h_pose,
+            'cout_materiaux': cout_materiaux,
+            'cout_mo': cout_mo,
+            'cout_revient': cout_revient,
+            'prix_total': prix_total,
+            'marge_globale': marge_globale,
+            'marge_projet': marge_projet
+        }
+
+    def set_chantier_marge_projet(self, chantier_id: int, marge: float):
+        """Definit la marge projet personnalisee et recalcule tous les articles"""
+        cursor = self.conn.cursor()
+
+        # Sauvegarder la marge projet
+        cursor.execute('''
+            UPDATE chantiers SET marge_projet = ?, date_modification = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (marge, chantier_id))
+        self.conn.commit()
+
+        # Appliquer la marge a tous les articles du chantier
+        cursor.execute("SELECT id FROM prix_marche WHERE chantier_id = ?", (chantier_id,))
+        for row in cursor.fetchall():
+            cursor.execute("UPDATE prix_marche SET marge_pct = ? WHERE id = ?", (marge, row['id']))
+        self.conn.commit()
+
+        # Recalculer tous les articles
+        cursor.execute("SELECT id FROM prix_marche WHERE chantier_id = ?", (chantier_id,))
+        for row in cursor.fetchall():
+            self.recalculer_article_dpgf(row['id'])
 
     # ==================== ARTICLES DPGF (PRIX_MARCHE) ====================
 

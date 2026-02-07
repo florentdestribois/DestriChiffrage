@@ -1,10 +1,24 @@
 # DestriChiffrage
 
-**Version 1.6.0**
+**Version 1.7.0**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Recapitulatif projet et marge personnalisee (v1.7.0)
+- **Recapitulatif projet** : Affichage automatique quand aucun article n'est selectionne dans la vue chiffrage DPGF
+  - Total des heures par type (conception, fabrication, pose)
+  - Couts detailles (materiaux, main d'oeuvre, revient)
+  - Prix total HT et marge globale calculee
+- **Marge projet personnalisee** : Ajustement de la marge produits par projet
+  - Appliquee a tous les articles du chantier en un clic
+  - Sauvegardee uniquement pour le projet (non globale)
+  - Recalcul automatique de tous les prix
+- **Harmonisation des boutons** : Style minimaliste coherent dans toute l'application
+  - Bouton principal : Or Destribois (secondary)
+  - Boutons secondaires : Ghost (transparent)
+  - Boutons supprimer : Danger-ghost (texte rouge discret)
 
 ### Refactorisation UI et composants reutilisables (v1.6.0)
 - **Factory methods dans theme.py** : Composants reutilisables pour une UI coherente
