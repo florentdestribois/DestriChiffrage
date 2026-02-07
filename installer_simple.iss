@@ -5,7 +5,7 @@
 ; Informations de base
 AppId={{C8F42A3E-5E4D-4B2C-9A8E-1D2F3C4B5A6E}
 AppName=DestriChiffrage
-AppVersion=1.6.0
+AppVersion=1.7.1
 AppPublisher=Destribois
 AppPublisherURL=https://github.com/florentdestribois/DestriChiffrage
 AppSupportURL=https://github.com/florentdestribois/DestriChiffrage
@@ -15,7 +15,7 @@ DefaultGroupName=DestriChiffrage
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
-OutputBaseFilename=DestriChiffrage-Setup-1.6.0
+OutputBaseFilename=DestriChiffrage-Setup-1.7.1
 SetupIconFile=assets\icon.ico
 Compression=lzma
 SolidCompression=yes
@@ -42,6 +42,15 @@ Source: "dist\DestriChiffrage.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; Fichiers de support (si présents dans dist\)
 ; IMPORTANT: On exclut data ET config pour préserver les données utilisateur lors des mises à jour
 Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "data,config"
+
+; Polices Destribois (Roboto et Abhaya Libre)
+Source: "assets\fonts\Roboto-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Roboto"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\Roboto-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "Roboto Bold"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\Roboto-Medium.ttf"; DestDir: "{autofonts}"; FontInstall: "Roboto Medium"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\Roboto-Light.ttf"; DestDir: "{autofonts}"; FontInstall: "Roboto Light"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\AbhayaLibre-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "Abhaya Libre"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\AbhayaLibre-SemiBold.ttf"; DestDir: "{autofonts}"; FontInstall: "Abhaya Libre SemiBold"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "assets\fonts\AbhayaLibre-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "Abhaya Libre Bold"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Dirs]
 ; Créer les dossiers data

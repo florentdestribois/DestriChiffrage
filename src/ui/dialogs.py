@@ -112,12 +112,33 @@ class ProductDialog:
                 # Remplir avec les valeurs appropriees selon le champ
                 if field == 'categorie':
                     widget['values'] = self.db.get_categories_names()
+                    widget.bind('<<ComboboxSelected>>', self._on_categorie_change)
                 elif field == 'sous_categorie':
-                    widget['values'] = self.db.get_subcategories_names(level=1)
+                    # Charger les sous-categories filtrees si une categorie existe
+                    cat = self.data.get('categorie', '')
+                    if cat:
+                        widget['values'] = self.db.get_sous_categories(cat)
+                    else:
+                        widget['values'] = []
+                    widget.bind('<<ComboboxSelected>>', self._on_sous_categorie_change)
                 elif field == 'sous_categorie_2':
-                    widget['values'] = self.db.get_subcategories_names(level=2)
+                    # Charger les sous-categories 2 filtrees
+                    cat = self.data.get('categorie', '')
+                    sous_cat = self.data.get('sous_categorie', '')
+                    if cat and sous_cat:
+                        widget['values'] = self.db.get_sous_categories_2(cat, sous_cat)
+                    else:
+                        widget['values'] = []
+                    widget.bind('<<ComboboxSelected>>', self._on_sous_categorie_2_change)
                 elif field == 'sous_categorie_3':
-                    widget['values'] = self.db.get_subcategories_names(level=3)
+                    # Charger les sous-categories 3 filtrees
+                    cat = self.data.get('categorie', '')
+                    sous_cat = self.data.get('sous_categorie', '')
+                    sous_cat_2 = self.data.get('sous_categorie_2', '')
+                    if cat and sous_cat and sous_cat_2:
+                        widget['values'] = self.db.get_sous_categories_3(cat, sous_cat, sous_cat_2)
+                    else:
+                        widget['values'] = []
                 widget.set(self.data.get(field, ''))
                 widget.grid(row=i, column=1, sticky='w', padx=5, pady=8)
             elif widget_type == 'text':
@@ -171,6 +192,52 @@ class ProductDialog:
                            style='ghost', padx=24).pack(side=tk.RIGHT, padx=(8, 0))
         Theme.create_button(btn_frame, "Enregistrer", command=self._save,
                            style='primary', padx=24).pack(side=tk.RIGHT)
+
+    def _on_categorie_change(self, event=None):
+        """Met a jour les sous-categories quand la categorie change"""
+        cat = self.entries['categorie'].get()
+
+        # Mettre a jour sous_categorie avec les valeurs filtrees
+        sous_cats = self.db.get_sous_categories(cat) if cat else []
+        self.entries['sous_categorie']['values'] = sous_cats
+        self.entries['sous_categorie'].set('')
+
+        # Vider les niveaux inferieurs
+        self.entries['sous_categorie_2']['values'] = []
+        self.entries['sous_categorie_2'].set('')
+        self.entries['sous_categorie_3']['values'] = []
+        self.entries['sous_categorie_3'].set('')
+
+    def _on_sous_categorie_change(self, event=None):
+        """Met a jour les sous-categories 2 quand la sous-categorie change"""
+        cat = self.entries['categorie'].get()
+        sous_cat = self.entries['sous_categorie'].get()
+
+        # Mettre a jour sous_categorie_2 avec les valeurs filtrees
+        if cat and sous_cat:
+            sous_cats_2 = self.db.get_sous_categories_2(cat, sous_cat)
+        else:
+            sous_cats_2 = []
+        self.entries['sous_categorie_2']['values'] = sous_cats_2
+        self.entries['sous_categorie_2'].set('')
+
+        # Vider le niveau inferieur
+        self.entries['sous_categorie_3']['values'] = []
+        self.entries['sous_categorie_3'].set('')
+
+    def _on_sous_categorie_2_change(self, event=None):
+        """Met a jour les sous-categories 3 quand la sous-categorie 2 change"""
+        cat = self.entries['categorie'].get()
+        sous_cat = self.entries['sous_categorie'].get()
+        sous_cat_2 = self.entries['sous_categorie_2'].get()
+
+        # Mettre a jour sous_categorie_3 avec les valeurs filtrees
+        if cat and sous_cat and sous_cat_2:
+            sous_cats_3 = self.db.get_sous_categories_3(cat, sous_cat, sous_cat_2)
+        else:
+            sous_cats_3 = []
+        self.entries['sous_categorie_3']['values'] = sous_cats_3
+        self.entries['sous_categorie_3'].set('')
 
     def _browse_file(self, entry_widget):
         """Ouvre un dialogue pour selectionner un fichier PDF"""
