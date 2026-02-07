@@ -5,7 +5,7 @@ Vue principale pour chiffrer un DPGF avec support multi-produits
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 import os
 import sys
 import subprocess
@@ -106,6 +106,20 @@ class DPGFChiffrageView:
                  fg=Theme.COLORS['white'],
                  bd=0, padx=12, pady=4, cursor='hand2',
                  command=self._add_article).pack(side=tk.RIGHT)
+
+        tk.Button(articles_header, text="Import catalogue",
+                 font=Theme.FONTS['small'],
+                 bg=Theme.COLORS['secondary'],
+                 fg=Theme.COLORS['white'],
+                 bd=0, padx=12, pady=4, cursor='hand2',
+                 command=self._import_from_catalog).pack(side=tk.RIGHT, padx=(0, 8))
+
+        tk.Button(articles_header, text="Import DPGF",
+                 font=Theme.FONTS['small'],
+                 bg=Theme.COLORS['bg_dark'],
+                 fg=Theme.COLORS['text'],
+                 bd=0, padx=12, pady=4, cursor='hand2',
+                 command=self._import_dpgf).pack(side=tk.RIGHT, padx=(0, 8))
 
         # Tableau articles
         table_frame = tk.Frame(left_frame, bg=Theme.COLORS['bg_alt'],
@@ -209,7 +223,21 @@ class DPGFChiffrageView:
                                          bg=Theme.COLORS['bg_alt'],
                                          fg=Theme.COLORS['text'],
                                          wraplength=350, justify='left')
-        self.designation_label.pack(anchor='w', pady=(0, 12))
+        self.designation_label.pack(anchor='w', pady=(0, 8))
+
+        # Description
+        tk.Label(self.detail_content, text="Description",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.description_text = tk.Text(self.detail_content, width=40, height=3,
+                                        font=Theme.FONTS['body'],
+                                        bg=Theme.COLORS['bg'],
+                                        fg=Theme.COLORS['text'],
+                                        bd=1, relief='solid', wrap='word')
+        self.description_text.pack(anchor='w', fill=tk.X, pady=(0, 12))
+        self.description_text.bind('<FocusOut>', lambda e: self._save_description())
 
         # Infos article
         info_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
@@ -270,6 +298,8 @@ class DPGFChiffrageView:
         self.produit_context_menu = tk.Menu(self.produits_tree, tearoff=0)
         self.produit_context_menu.add_command(label="Copier les informations",
                                               command=self._copy_produit_info)
+        self.produit_context_menu.add_command(label="Copier la description",
+                                              command=self._copy_produit_description)
         self.produit_context_menu.add_separator()
         self.produit_context_menu.add_command(label="Ouvrir la fiche technique",
                                               command=self._open_fiche_technique)
@@ -350,22 +380,23 @@ class DPGFChiffrageView:
 
         ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=12)
 
-        # Section Marge
-        marge_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
-        marge_frame.pack(fill=tk.X, pady=(0, 12))
+        # Section TVA
+        tva_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
+        tva_frame.pack(fill=tk.X, pady=(8, 12))
 
-        tk.Label(marge_frame, text="Marge (%)",
+        tk.Label(tva_frame, text="TVA",
                 font=Theme.FONTS['small'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text']).pack(side=tk.LEFT)
 
-        self.marge_entry = tk.Entry(marge_frame, width=8, font=Theme.FONTS['body'],
-                                   bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
-                                   bd=1, relief='solid', justify='center')
-        self.marge_entry.insert(0, str(self.db.get_marge_marche()))
-        self.marge_entry.pack(side=tk.LEFT, padx=(8, 0))
-        self.marge_entry.bind('<FocusOut>', lambda e: self._update_marge())
-        self.marge_entry.bind('<Return>', lambda e: self._update_marge())
+        self.tva_var = tk.StringVar(value="20%")
+        self.tva_options = [0, 5.5, 10, 20]
+        self.tva_combo = ttk.Combobox(tva_frame, textvariable=self.tva_var,
+                                      values=["0%", "5.5%", "10%", "20%"],
+                                      state='readonly', width=8,
+                                      font=Theme.FONTS['body'])
+        self.tva_combo.pack(side=tk.LEFT, padx=(8, 0))
+        self.tva_combo.bind('<<ComboboxSelected>>', lambda e: self._save_tva())
 
         # Resume couts
         ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=8)
@@ -440,6 +471,10 @@ class DPGFChiffrageView:
         self.info_labels['unite'].config(text=article['unite'] or 'U')
         self.info_labels['quantite'].config(text=str(article['quantite']))
 
+        # Description
+        self.description_text.delete('1.0', tk.END)
+        self.description_text.insert('1.0', article.get('description', '') or '')
+
         # Temps MO
         self.mo_entries['conception'].delete(0, tk.END)
         self.mo_entries['conception'].insert(0, str(article['temps_conception']))
@@ -448,9 +483,9 @@ class DPGFChiffrageView:
         self.mo_entries['pose'].delete(0, tk.END)
         self.mo_entries['pose'].insert(0, str(article['temps_pose']))
 
-        # Marge
-        self.marge_entry.delete(0, tk.END)
-        self.marge_entry.insert(0, str(article['marge_pct']))
+        # TVA
+        taux_tva = article.get('taux_tva', 20) or 20
+        self.tva_var.set(f"{taux_tva}%")
 
         # Produits lies
         self._load_produits_lies()
@@ -496,6 +531,40 @@ class DPGFChiffrageView:
         dialog = ArticleDialog(self.window, self.db, self.chantier_id)
         if dialog.result:
             self._load_articles()
+
+    def _import_from_catalog(self):
+        """Importe un article depuis le catalogue produits"""
+        dialog = ProductSearchDialog(self.window, self.db)
+        if dialog.result and dialog.selected_product:
+            produit = dialog.selected_product
+            # Creer l'article DPGF avec les donnees du produit
+            article_data = {
+                'code': produit.get('article', ''),
+                'designation': produit.get('designation', ''),
+                'description': produit.get('designation', ''),
+                'quantite': 1,
+                'marge_pct': 20.0,
+                'taux_tva': 20.0
+            }
+            article_id = self.db.add_article_dpgf(self.chantier_id, article_data)
+            # Lier le produit a l'article
+            self.db.add_produit_article(article_id, produit['id'], quantite=1)
+            self._load_articles()
+
+    def _import_dpgf(self):
+        """Importe un fichier DPGF CSV dans le chantier courant"""
+        filepath = filedialog.askopenfilename(
+            parent=self.window,
+            title="Importer un fichier DPGF",
+            filetypes=[("Fichiers CSV", "*.csv"), ("Tous les fichiers", "*.*")]
+        )
+        if filepath:
+            try:
+                count = self.db.import_dpgf_csv(self.chantier_id, filepath)
+                self._load_articles()
+                messagebox.showinfo("Import", f"{count} article(s) importe(s) avec succes")
+            except Exception as e:
+                messagebox.showerror("Erreur", f"Erreur lors de l'import : {str(e)}")
 
     def _delete_article(self):
         """Supprime l'article selectionne"""
@@ -563,6 +632,7 @@ class DPGFChiffrageView:
         data = {
             'code': article['code'],
             'designation': article['designation'],
+            'description': article.get('description', ''),
             'categorie': article['categorie'],
             'largeur_mm': article['largeur_mm'],
             'hauteur_mm': article['hauteur_mm'],
@@ -575,21 +645,19 @@ class DPGFChiffrageView:
             'temps_fabrication': temps_fabrication,
             'temps_pose': temps_pose,
             'marge_pct': article['marge_pct'],
+            'taux_tva': article.get('taux_tva', 20),
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
         self._update_couts_display()
         self._load_articles()
 
-    def _update_marge(self):
-        """Met a jour la marge"""
+    def _save_description(self):
+        """Sauvegarde la description de l'article"""
         if not self.current_article_id:
             return
 
-        try:
-            marge = float(self.marge_entry.get().replace(',', '.') or 25)
-        except ValueError:
-            return
+        description = self.description_text.get('1.0', tk.END).strip()
 
         article = self.db.get_article_dpgf(self.current_article_id)
         if not article:
@@ -598,6 +666,7 @@ class DPGFChiffrageView:
         data = {
             'code': article['code'],
             'designation': article['designation'],
+            'description': description,
             'categorie': article['categorie'],
             'largeur_mm': article['largeur_mm'],
             'hauteur_mm': article['hauteur_mm'],
@@ -609,12 +678,48 @@ class DPGFChiffrageView:
             'temps_conception': article['temps_conception'],
             'temps_fabrication': article['temps_fabrication'],
             'temps_pose': article['temps_pose'],
-            'marge_pct': marge,
+            'marge_pct': article['marge_pct'],
+            'taux_tva': article.get('taux_tva', 20),
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
-        self._update_couts_display()
-        self._load_articles()
+
+    def _save_tva(self):
+        """Sauvegarde le taux de TVA de l'article"""
+        if not self.current_article_id:
+            return
+
+        # Extraire le taux du texte (ex: "20%" -> 20)
+        tva_text = self.tva_var.get().replace('%', '')
+        try:
+            taux_tva = float(tva_text)
+        except ValueError:
+            taux_tva = 20
+
+        article = self.db.get_article_dpgf(self.current_article_id)
+        if not article:
+            return
+
+        data = {
+            'code': article['code'],
+            'designation': article['designation'],
+            'description': article.get('description', ''),
+            'categorie': article['categorie'],
+            'largeur_mm': article['largeur_mm'],
+            'hauteur_mm': article['hauteur_mm'],
+            'caracteristiques': article['caracteristiques'],
+            'unite': article['unite'],
+            'quantite': article['quantite'],
+            'localisation': article['localisation'],
+            'notes': article['notes'],
+            'temps_conception': article['temps_conception'],
+            'temps_fabrication': article['temps_fabrication'],
+            'temps_pose': article['temps_pose'],
+            'marge_pct': article['marge_pct'],
+            'taux_tva': taux_tva,
+        }
+
+        self.db.update_article_dpgf(self.current_article_id, data)
 
     def _export_dpgf(self):
         """Exporte le DPGF"""
@@ -656,9 +761,9 @@ class DPGFChiffrageView:
                 has_fiche = produit and produit.get('fiche_technique')
                 has_devis = produit and produit.get('devis_fournisseur')
 
-                # Mettre a jour l'etat des commandes
-                self.produit_context_menu.entryconfig(2, state='normal' if has_fiche else 'disabled')
-                self.produit_context_menu.entryconfig(3, state='normal' if has_devis else 'disabled')
+                # Mettre a jour l'etat des commandes (indices: 0=copier info, 1=copier desc, 2=sep, 3=fiche, 4=devis)
+                self.produit_context_menu.entryconfig(3, state='normal' if has_fiche else 'disabled')
+                self.produit_context_menu.entryconfig(4, state='normal' if has_devis else 'disabled')
 
             # Afficher le menu
             self.produit_context_menu.tk_popup(event.x_root, event.y_root)
@@ -706,6 +811,27 @@ class DPGFChiffrageView:
         self.window.update()
 
         messagebox.showinfo("Copie", "Informations copiees dans le presse-papier")
+
+    def _copy_produit_description(self):
+        """Copie la description du produit dans le presse-papier"""
+        liaison_info, produit = self._get_selected_produit_info()
+        if not produit:
+            messagebox.showwarning("Attention", "Aucun produit selectionne")
+            return
+
+        # Recuperer la description du produit
+        description = produit.get('description', '') or produit.get('designation', '')
+
+        if not description:
+            messagebox.showwarning("Attention", "Ce produit n'a pas de description")
+            return
+
+        # Copier dans le presse-papier
+        self.window.clipboard_clear()
+        self.window.clipboard_append(description)
+        self.window.update()
+
+        messagebox.showinfo("Copie", "Description copiee dans le presse-papier")
 
     def _open_fiche_technique(self):
         """Ouvre la fiche technique du produit"""
@@ -772,16 +898,16 @@ class ArticleDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Modifier l'article" if article_id else "Nouvel article")
-        self.dialog.geometry("600x500")
-        self.dialog.minsize(580, 480)
+        self.dialog.geometry("750x680")
+        self.dialog.minsize(700, 630)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
         # Centrer
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 600) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 500) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - 750) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 680) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
         self._create_widgets()
@@ -839,8 +965,20 @@ class ArticleDialog:
             entry.grid(row=i, column=1, sticky='w', padx=5, pady=8)
             self.entries[field] = entry
 
-        # Notes
+        # Description
         row = len(fields)
+        tk.Label(form_card, text="Description", font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='ne', padx=(5, 10), pady=8)
+
+        self.description_text = tk.Text(form_card, width=36, height=3, font=Theme.FONTS['body'],
+                                       bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                       bd=1, relief='solid', wrap='word')
+        self.description_text.insert('1.0', self.data.get('description', '') or '')
+        self.description_text.grid(row=row, column=1, sticky='w', padx=5, pady=8)
+
+        # Notes
+        row += 1
         tk.Label(form_card, text="Notes", font=Theme.FONTS['body'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='ne', padx=(5, 10), pady=8)
@@ -880,6 +1018,7 @@ class ArticleDialog:
         data = {
             'code': self.entries['code'].get().strip(),
             'designation': designation,
+            'description': self.description_text.get('1.0', tk.END).strip(),
             'categorie': self.entries['categorie'].get().strip(),
             'unite': self.entries['unite'].get().strip() or 'U',
             'quantite': quantite,
@@ -889,12 +1028,13 @@ class ArticleDialog:
 
         try:
             if self.article_id:
-                # Conserver les temps MO existants
+                # Conserver les temps MO et autres donnees existantes
                 article = self.db.get_article_dpgf(self.article_id)
                 data['temps_conception'] = article['temps_conception']
                 data['temps_fabrication'] = article['temps_fabrication']
                 data['temps_pose'] = article['temps_pose']
                 data['marge_pct'] = article['marge_pct']
+                data['taux_tva'] = article.get('taux_tva', 20)
                 self.db.update_article_dpgf(self.article_id, data)
             else:
                 self.db.add_article_dpgf(self.chantier_id, data)

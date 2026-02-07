@@ -12,6 +12,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from ui.theme import Theme
 
+# Types de marche disponibles
+TYPES_MARCHE = {
+    'PUBLIC': 'Marche public',
+    'PARTICULIER': 'Particulier avec DPGF',
+    'ODOO': 'Export Odoo',
+}
+
 
 class DPGFImportDialog:
     """Dialogue d'import DPGF avec creation de chantier"""
@@ -24,16 +31,16 @@ class DPGFImportDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Nouveau chantier / Import DPGF")
-        self.dialog.geometry("700x580")
-        self.dialog.minsize(680, 560)
+        self.dialog.geometry("850x750")
+        self.dialog.minsize(800, 700)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
         # Centrer
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 700) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 580) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - 850) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 750) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
         self._create_widgets()
@@ -51,7 +58,7 @@ class DPGFImportDialog:
                 bg=Theme.COLORS['primary'],
                 fg=Theme.COLORS['white']).pack(side=tk.LEFT, padx=24, pady=16)
 
-        # Main frame
+        # Main frame avec scroll
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -71,29 +78,84 @@ class DPGFImportDialog:
 
         self.entries = {}
 
-        fields = [
-            ('nom', 'Nom du chantier *', 0, 0),
-            ('lieu', 'Lieu / Adresse', 0, 1),
-            ('type_projet', 'Type de projet', 1, 0),
-            ('lot', 'Lot', 1, 1),
-        ]
+        # Ligne 1: Nom du chantier et Nom du client
+        row1 = tk.Frame(form_frame, bg=Theme.COLORS['bg_alt'])
+        row1.pack(fill=tk.X, pady=4)
 
-        for field, label, row, col in fields:
-            frame = tk.Frame(form_frame, bg=Theme.COLORS['bg_alt'])
-            frame.grid(row=row, column=col, sticky='ew', padx=8, pady=8)
-
-            tk.Label(frame, text=label, font=Theme.FONTS['small'],
-                    bg=Theme.COLORS['bg_alt'],
-                    fg=Theme.COLORS['text_light']).pack(anchor='w')
-
-            entry = tk.Entry(frame, width=28, font=Theme.FONTS['body'],
+        # Nom du chantier
+        frame_nom = tk.Frame(row1, bg=Theme.COLORS['bg_alt'])
+        frame_nom.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
+        tk.Label(frame_nom, text="Nom du chantier *", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        entry_nom = tk.Entry(frame_nom, font=Theme.FONTS['body'],
                            bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
                            bd=1, relief='solid')
-            entry.pack(fill=tk.X, pady=(4, 0))
-            self.entries[field] = entry
+        entry_nom.pack(fill=tk.X, pady=(4, 0))
+        self.entries['nom'] = entry_nom
 
-        form_frame.columnconfigure(0, weight=1)
-        form_frame.columnconfigure(1, weight=1)
+        # Nom du client
+        frame_client = tk.Frame(row1, bg=Theme.COLORS['bg_alt'])
+        frame_client.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        tk.Label(frame_client, text="Nom du client", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        entry_client = tk.Entry(frame_client, font=Theme.FONTS['body'],
+                               bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                               bd=1, relief='solid')
+        entry_client.pack(fill=tk.X, pady=(4, 0))
+        self.entries['nom_client'] = entry_client
+
+        # Ligne 2: Type de marche et Lieu
+        row2 = tk.Frame(form_frame, bg=Theme.COLORS['bg_alt'])
+        row2.pack(fill=tk.X, pady=4)
+
+        # Type de marche
+        frame_type = tk.Frame(row2, bg=Theme.COLORS['bg_alt'])
+        frame_type.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
+        tk.Label(frame_type, text="Type de marche", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        self.type_marche_var = tk.StringVar(value='PUBLIC')
+        type_combo = ttk.Combobox(frame_type, textvariable=self.type_marche_var,
+                                 values=list(TYPES_MARCHE.values()),
+                                 state='readonly', font=Theme.FONTS['body'])
+        type_combo.set(TYPES_MARCHE['PUBLIC'])
+        type_combo.pack(fill=tk.X, pady=(4, 0))
+
+        # Lieu
+        frame_lieu = tk.Frame(row2, bg=Theme.COLORS['bg_alt'])
+        frame_lieu.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        tk.Label(frame_lieu, text="Lieu / Adresse", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        entry_lieu = tk.Entry(frame_lieu, font=Theme.FONTS['body'],
+                             bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                             bd=1, relief='solid')
+        entry_lieu.pack(fill=tk.X, pady=(4, 0))
+        self.entries['lieu'] = entry_lieu
+
+        # Ligne 3: Type de projet et Lot
+        row3 = tk.Frame(form_frame, bg=Theme.COLORS['bg_alt'])
+        row3.pack(fill=tk.X, pady=4)
+
+        # Type de projet
+        frame_projet = tk.Frame(row3, bg=Theme.COLORS['bg_alt'])
+        frame_projet.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
+        tk.Label(frame_projet, text="Type de projet", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        entry_projet = tk.Entry(frame_projet, font=Theme.FONTS['body'],
+                               bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                               bd=1, relief='solid')
+        entry_projet.pack(fill=tk.X, pady=(4, 0))
+        self.entries['type_projet'] = entry_projet
+
+        # Lot
+        frame_lot = tk.Frame(row3, bg=Theme.COLORS['bg_alt'])
+        frame_lot.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        tk.Label(frame_lot, text="Lot", font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text_light']).pack(anchor='w')
+        entry_lot = tk.Entry(frame_lot, font=Theme.FONTS['body'],
+                            bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                            bd=1, relief='solid')
+        entry_lot.pack(fill=tk.X, pady=(4, 0))
+        self.entries['lot'] = entry_lot
 
         # Notes
         notes_frame = tk.Frame(info_card, bg=Theme.COLORS['bg_alt'])
@@ -142,7 +204,7 @@ class DPGFImportDialog:
 
         # Info format
         tk.Label(import_card,
-                text="Format CSV attendu: CODE;NIVEAU;DESIGNATION;CATEGORIE;LARGEUR_MM;HAUTEUR_MM;CARACTERISTIQUES;UNITE;QUANTITE;LOCALISATION;NOTES",
+                text="Format CSV attendu: CODE;NIVEAU;DESIGNATION;DESCRIPTION;CATEGORIE;LARGEUR_MM;HAUTEUR_MM;CARACTERISTIQUES;UNITE;QUANTITE;LOCALISATION;NOTES;TVA",
                 font=Theme.FONTS['tiny'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_muted'],
@@ -197,6 +259,14 @@ class DPGFImportDialog:
             except Exception as e:
                 messagebox.showerror("Erreur", f"Erreur lors de la creation:\n{e}")
 
+    def _get_type_marche_key(self):
+        """Retourne la cle du type de marche selectionne"""
+        value = self.type_marche_var.get()
+        for key, label in TYPES_MARCHE.items():
+            if label == value:
+                return key
+        return 'PUBLIC'
+
     def _save(self):
         """Cree le chantier et importe le DPGF si fourni"""
         # Validation
@@ -205,9 +275,19 @@ class DPGFImportDialog:
             messagebox.showerror("Erreur", "Le nom du chantier est obligatoire")
             return
 
+        # Validation nom_client obligatoire si type = ODOO
+        type_marche = self._get_type_marche_key()
+        nom_client = self.entries['nom_client'].get().strip()
+        if type_marche == 'ODOO' and not nom_client:
+            messagebox.showerror("Erreur",
+                "Le nom du client est obligatoire pour l'export Odoo")
+            return
+
         # Creer le chantier
         data = {
             'nom': nom,
+            'nom_client': nom_client,
+            'type_marche': type_marche,
             'lieu': self.entries['lieu'].get().strip(),
             'type_projet': self.entries['type_projet'].get().strip(),
             'lot': self.entries['lot'].get().strip(),
@@ -250,16 +330,16 @@ class ChantierEditDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Modifier le chantier")
-        self.dialog.geometry("600x500")
-        self.dialog.minsize(580, 480)
+        self.dialog.geometry("750x680")
+        self.dialog.minsize(700, 630)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
         # Centrer
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 600) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 500) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - 750) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 680) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
         self._create_widgets()
@@ -290,25 +370,42 @@ class ChantierEditDialog:
 
         fields = [
             ('nom', 'Nom du chantier *'),
+            ('nom_client', 'Nom du client'),
             ('lieu', 'Lieu / Adresse'),
             ('type_projet', 'Type de projet'),
             ('lot', 'Lot'),
         ]
 
-        for i, (field, label) in enumerate(fields):
+        row = 0
+        for field, label in fields:
             tk.Label(info_card, text=label, font=Theme.FONTS['body'],
                     bg=Theme.COLORS['bg_alt'],
-                    fg=Theme.COLORS['text']).grid(row=i, column=0, sticky='e', padx=(5, 10), pady=8)
+                    fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='e', padx=(5, 10), pady=8)
 
             entry = tk.Entry(info_card, width=36, font=Theme.FONTS['body'],
                            bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
                            bd=1, relief='solid')
             entry.insert(0, self.data.get(field, '') or '')
-            entry.grid(row=i, column=1, sticky='w', padx=5, pady=8)
+            entry.grid(row=row, column=1, sticky='w', padx=5, pady=8)
             self.entries[field] = entry
+            row += 1
+
+        # Type de marche
+        tk.Label(info_card, text="Type de marche", font=Theme.FONTS['body'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='e', padx=(5, 10), pady=8)
+
+        self.type_marche_var = tk.StringVar()
+        current_type = self.data.get('type_marche', 'PUBLIC') or 'PUBLIC'
+        self.type_marche_var.set(TYPES_MARCHE.get(current_type, TYPES_MARCHE['PUBLIC']))
+
+        type_combo = ttk.Combobox(info_card, textvariable=self.type_marche_var,
+                                 values=list(TYPES_MARCHE.values()),
+                                 state='readonly', font=Theme.FONTS['body'], width=34)
+        type_combo.grid(row=row, column=1, sticky='w', padx=5, pady=8)
+        row += 1
 
         # Notes
-        row = len(fields)
         tk.Label(info_card, text="Notes", font=Theme.FONTS['body'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text']).grid(row=row, column=0, sticky='ne', padx=(5, 10), pady=8)
@@ -333,6 +430,14 @@ class ChantierEditDialog:
                  bd=0, padx=24, pady=10, cursor='hand2',
                  command=self._save).pack(side=tk.RIGHT)
 
+    def _get_type_marche_key(self):
+        """Retourne la cle du type de marche selectionne"""
+        value = self.type_marche_var.get()
+        for key, label in TYPES_MARCHE.items():
+            if label == value:
+                return key
+        return 'PUBLIC'
+
     def _save(self):
         """Enregistre les modifications"""
         nom = self.entries['nom'].get().strip()
@@ -340,8 +445,18 @@ class ChantierEditDialog:
             messagebox.showerror("Erreur", "Le nom du chantier est obligatoire")
             return
 
+        # Validation nom_client obligatoire si type = ODOO
+        type_marche = self._get_type_marche_key()
+        nom_client = self.entries['nom_client'].get().strip()
+        if type_marche == 'ODOO' and not nom_client:
+            messagebox.showerror("Erreur",
+                "Le nom du client est obligatoire pour l'export Odoo")
+            return
+
         data = {
             'nom': nom,
+            'nom_client': nom_client,
+            'type_marche': type_marche,
             'lieu': self.entries['lieu'].get().strip(),
             'type_projet': self.entries['type_projet'].get().strip(),
             'lot': self.entries['lot'].get().strip(),

@@ -470,7 +470,8 @@ class MultiProductSearchDialog:
         # Simple dialogue de saisie
         dialog = tk.Toplevel(self.dialog)
         dialog.title("Modifier la quantite")
-        dialog.geometry("300x150")
+        dialog.geometry("380x200")
+        dialog.minsize(350, 180)
         dialog.transient(self.dialog)
         dialog.grab_set()
         dialog.configure(bg=Theme.COLORS['bg'])
@@ -482,10 +483,10 @@ class MultiProductSearchDialog:
 
         tk.Label(dialog, text="Nouvelle quantite:",
                 font=Theme.FONTS['body'],
-                bg=Theme.COLORS['bg']).pack(pady=(20, 8))
+                bg=Theme.COLORS['bg']).pack(pady=(24, 12))
 
         qty_var = tk.StringVar(value=str(current_qty))
-        entry = tk.Entry(dialog, textvariable=qty_var, width=10,
+        entry = tk.Entry(dialog, textvariable=qty_var, width=12,
                         font=Theme.FONTS['body'], justify='center')
         entry.pack()
         entry.select_range(0, tk.END)
@@ -504,9 +505,19 @@ class MultiProductSearchDialog:
             except:
                 messagebox.showerror("Erreur", "Quantite invalide")
 
-        tk.Button(dialog, text="OK", command=save,
+        btn_frame = tk.Frame(dialog, bg=Theme.COLORS['bg'])
+        btn_frame.pack(pady=20)
+
+        tk.Button(btn_frame, text="Annuler",
+                 font=Theme.FONTS['body'],
+                 bg=Theme.COLORS['bg_dark'], fg=Theme.COLORS['text'],
+                 bd=0, padx=16, pady=8, cursor='hand2',
+                 command=dialog.destroy).pack(side=tk.LEFT, padx=(0, 8))
+
+        tk.Button(btn_frame, text="OK", command=save,
+                 font=Theme.FONTS['body_bold'],
                  bg=Theme.COLORS['accent'], fg=Theme.COLORS['white'],
-                 bd=0, padx=20, pady=8).pack(pady=16)
+                 bd=0, padx=20, pady=8, cursor='hand2').pack(side=tk.LEFT)
 
         dialog.wait_window()
 

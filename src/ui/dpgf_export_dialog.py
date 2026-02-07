@@ -28,16 +28,16 @@ class DPGFExportDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Exporter le DPGF")
-        self.dialog.geometry("600x580")
-        self.dialog.minsize(580, 560)
+        self.dialog.geometry("750x650")
+        self.dialog.minsize(700, 600)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
         # Centrer
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 600) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 580) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - 750) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 650) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
         # Variables
@@ -104,7 +104,8 @@ class DPGFExportDialog:
                       bg=Theme.COLORS['bg_alt'],
                       fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'],
-                      activebackground=Theme.COLORS['bg_alt']).pack(anchor='w')
+                      activebackground=Theme.COLORS['bg_alt'],
+                      command=self._on_version_change).pack(anchor='w')
 
         tk.Label(client_frame,
                 text="Export avec: Code, Designation, Unite, Quantite, Prix unitaire, Prix total",
@@ -122,7 +123,8 @@ class DPGFExportDialog:
                       bg=Theme.COLORS['bg_alt'],
                       fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'],
-                      activebackground=Theme.COLORS['bg_alt']).pack(anchor='w')
+                      activebackground=Theme.COLORS['bg_alt'],
+                      command=self._on_version_change).pack(anchor='w')
 
         tk.Label(interne_frame,
                 text="Export complet avec: Temps MO, Couts detailles, Marge, Produits lies",
@@ -130,18 +132,37 @@ class DPGFExportDialog:
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w', padx=(24, 0))
 
-        # Section documents PDF
-        pdf_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                           highlightbackground=Theme.COLORS['border'], highlightthickness=1)
-        pdf_card.pack(fill=tk.X, pady=(0, 16))
+        # Version Odoo
+        odoo_frame = tk.Frame(options_card, bg=Theme.COLORS['bg_alt'])
+        odoo_frame.pack(fill=tk.X, pady=4)
 
-        tk.Label(pdf_card, text="DOCUMENTS PDF",
+        tk.Radiobutton(odoo_frame, text="Version Odoo (format compatible ERP)",
+                      variable=self.version_var, value="odoo",
+                      font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'],
+                      fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'],
+                      activebackground=Theme.COLORS['bg_alt'],
+                      command=self._on_version_change).pack(anchor='w')
+
+        tk.Label(odoo_frame,
+                text="Export au format Odoo: Client, Articles, Description, Quantite, Prix, TVA",
+                font=Theme.FONTS['tiny'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w', padx=(24, 0))
+
+        # Section documents PDF
+        self.pdf_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
+                           highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        self.pdf_card.pack(fill=tk.X, pady=(0, 16))
+
+        tk.Label(self.pdf_card, text="DOCUMENTS PDF",
                 font=Theme.FONTS['subheading'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 12))
 
         # Dossier destination
-        dir_frame = tk.Frame(pdf_card, bg=Theme.COLORS['bg_alt'])
+        dir_frame = tk.Frame(self.pdf_card, bg=Theme.COLORS['bg_alt'])
         dir_frame.pack(fill=tk.X, pady=(0, 10))
 
         tk.Label(dir_frame, text="Dossier destination:",
@@ -164,19 +185,19 @@ class DPGFExportDialog:
                  cursor='hand2', command=self._browse_dir).pack(side=tk.LEFT, padx=(8, 0))
 
         # Checkboxes
-        tk.Checkbutton(pdf_card, text="Inclure les fiches techniques",
+        tk.Checkbutton(self.pdf_card, text="Inclure les fiches techniques",
                       variable=self.include_fiches_var, font=Theme.FONTS['body'],
                       bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
                       cursor='hand2').pack(anchor='w', pady=(8, 4))
 
-        tk.Checkbutton(pdf_card, text="Inclure les devis fournisseur",
+        tk.Checkbutton(self.pdf_card, text="Inclure les devis fournisseur",
                       variable=self.include_devis_var, font=Theme.FONTS['body'],
                       bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
                       cursor='hand2').pack(anchor='w')
 
-        tk.Label(pdf_card,
+        tk.Label(self.pdf_card,
                 text="Les fichiers seront copies dans des sous-dossiers Fiches_techniques/ et Devis_fournisseur/",
                 font=Theme.FONTS['tiny'],
                 bg=Theme.COLORS['bg_alt'],
@@ -216,9 +237,16 @@ class DPGFExportDialog:
         if directory:
             self.export_dir_var.set(directory)
 
+    def _on_version_change(self):
+        """Gere le changement de version d'export"""
+        # La section PDF est toujours visible pour tous les formats
+        pass
+
     def _export(self):
         """Execute l'export"""
-        version_client = self.version_var.get() == "client"
+        version = self.version_var.get()
+        version_client = version == "client"
+        version_odoo = version == "odoo"
         include_fiches = self.include_fiches_var.get()
         include_devis = self.include_devis_var.get()
         export_dir = self.export_dir_var.get()
@@ -232,7 +260,12 @@ class DPGFExportDialog:
         # Nom de fichier par defaut
         chantier_nom = self.chantier.get('nom', 'DPGF').replace(' ', '_')
         date_str = datetime.now().strftime('%Y%m%d')
-        suffix = "client" if version_client else "interne"
+        if version_odoo:
+            suffix = "odoo"
+        elif version_client:
+            suffix = "client"
+        else:
+            suffix = "interne"
         default_name = f"DPGF_{chantier_nom}_{suffix}_{date_str}.csv"
 
         filepath = filedialog.asksaveasfilename(
@@ -253,8 +286,11 @@ class DPGFExportDialog:
             self.dialog.update()
 
         try:
-            # Export CSV
-            count = self.db.export_dpgf_csv(self.chantier_id, filepath, version_client)
+            # Export CSV selon le format
+            if version_odoo:
+                count = self.db.export_dpgf_odoo(self.chantier_id, filepath)
+            else:
+                count = self.db.export_dpgf_csv(self.chantier_id, filepath, version_client)
 
             # Export des fichiers PDF si demande
             nb_fiches = 0
@@ -275,7 +311,7 @@ class DPGFExportDialog:
             # Construire le message de resultat
             message = f"DPGF exporte avec succes!\n\n"
             message += f"Fichier CSV: {os.path.basename(filepath)}\n"
-            message += f"Articles: {count}\n"
+            message += f"Articles exportes: {count}\n"
 
             if include_fiches:
                 message += f"Fiches techniques copiees: {nb_fiches}\n"

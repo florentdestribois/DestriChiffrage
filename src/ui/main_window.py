@@ -902,6 +902,7 @@ class MainWindow:
                     f"- CATEGORIE: Categorie du produit (obligatoire)\n"
                     f"- SOUS-CATEGORIE: Sous-categorie (optionnel)\n"
                     f"- DESIGNATION: Nom du produit (obligatoire)\n"
+                    f"- DESCRIPTION: Description detaillee (optionnel)\n"
                     f"- HAUTEUR: Hauteur en mm (optionnel)\n"
                     f"- LARGEUR: Largeur en mm (optionnel)\n"
                     f"- PRIX_UNITAIRE_HT: Prix d'achat (optionnel)\n"
@@ -1131,6 +1132,7 @@ Prix max: {stats['prix_max']:.2f} EUR
         dialog = tk.Toplevel(self.root)
         dialog.title("Vider la base de donnees")
         dialog.geometry("450x280")
+        dialog.minsize(430, 260)
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)

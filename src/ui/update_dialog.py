@@ -36,6 +36,7 @@ class UpdateDialog(tk.Toplevel):
 
         self.title("Mise à jour disponible")
         self.geometry("500x500")
+        self.minsize(480, 480)
         self.transient(parent)
         self.grab_set()
         self.resizable(True, True)
@@ -180,6 +181,7 @@ class DownloadProgressDialog(tk.Toplevel):
 
         self.title("Téléchargement en cours")
         self.geometry("450x200")
+        self.minsize(430, 180)
         self.transient(parent)
         self.grab_set()
         self.resizable(False, False)

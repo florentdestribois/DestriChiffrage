@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from ui.theme import Theme
-from ui.dpgf_import_dialog import DPGFImportDialog, ChantierEditDialog
+from ui.dpgf_import_dialog import DPGFImportDialog, ChantierEditDialog, TYPES_MARCHE
 from ui.dpgf_chiffrage_view import DPGFChiffrageView
 from ui.resultat_marche_dialog import get_resultat_color, get_resultat_label, RESULTATS
 
@@ -41,6 +41,7 @@ class MarchesAnalyseView:
 
         # Variables
         self.filter_var = tk.StringVar(value="Tous")
+        self.type_marche_var = tk.StringVar(value="Tous")
 
         self._create_widgets()
         self._load_chantiers()
@@ -93,6 +94,19 @@ class MarchesAnalyseView:
         filter_combo.pack(side=tk.LEFT, padx=(8, 0))
         filter_combo.bind('<<ComboboxSelected>>', lambda e: self._load_chantiers())
 
+        tk.Label(filter_frame, text="Type de marche:",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).pack(side=tk.LEFT, padx=(16, 0))
+
+        type_marche_combo = ttk.Combobox(filter_frame, textvariable=self.type_marche_var,
+                                        width=18, state='readonly',
+                                        font=Theme.FONTS['body'])
+        type_marche_values = ['Tous'] + list(TYPES_MARCHE.values())
+        type_marche_combo['values'] = type_marche_values
+        type_marche_combo.pack(side=tk.LEFT, padx=(8, 0))
+        type_marche_combo.bind('<<ComboboxSelected>>', lambda e: self._load_chantiers())
+
         # Stats
         self.stats_frame = tk.Frame(top_bar, bg=Theme.COLORS['bg_alt'], padx=12, pady=8,
                                    highlightbackground=Theme.COLORS['border'], highlightthickness=1)
@@ -105,18 +119,19 @@ class MarchesAnalyseView:
                               highlightbackground=Theme.COLORS['border'], highlightthickness=1)
         table_frame.pack(fill=tk.BOTH, expand=True)
 
-        columns = ('id', 'nom', 'lieu', 'lot', 'montant', 'resultat', 'concurrent', 'date')
+        columns = ('id', 'nom', 'lieu', 'lot', 'type_marche', 'montant', 'resultat', 'concurrent', 'date')
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=20)
 
         col_config = {
             'id': ('ID', 50, 'center'),
-            'nom': ('Nom du chantier', 250, 'w'),
-            'lieu': ('Lieu', 150, 'w'),
-            'lot': ('Lot', 80, 'center'),
-            'montant': ('Montant HT', 120, 'e'),
-            'resultat': ('Resultat', 100, 'center'),
-            'concurrent': ('Concurrent', 150, 'w'),
-            'date': ('Date', 100, 'center'),
+            'nom': ('Nom du chantier', 220, 'w'),
+            'lieu': ('Lieu', 130, 'w'),
+            'lot': ('Lot', 70, 'center'),
+            'type_marche': ('Type', 130, 'center'),
+            'montant': ('Montant HT', 110, 'e'),
+            'resultat': ('Resultat', 90, 'center'),
+            'concurrent': ('Concurrent', 130, 'w'),
+            'date': ('Date', 90, 'center'),
         }
 
         for col, (text, width, anchor) in col_config.items():
@@ -140,6 +155,31 @@ class MarchesAnalyseView:
 
         # Double-clic pour ouvrir
         self.tree.bind('<Double-1>', lambda e: self._open_chantier())
+
+        # Menu contextuel (clic droit)
+        self.context_menu = tk.Menu(self.tree, tearoff=0)
+
+        # Sous-menu Copier
+        self.copy_menu = tk.Menu(self.context_menu, tearoff=0)
+        self.copy_menu.add_command(label="Nom du chantier", command=lambda: self._copy_field('nom'))
+        self.copy_menu.add_command(label="Lieu", command=lambda: self._copy_field('lieu'))
+        self.copy_menu.add_command(label="Lot", command=lambda: self._copy_field('lot'))
+        self.copy_menu.add_command(label="Type de marche", command=lambda: self._copy_field('type_marche'))
+        self.copy_menu.add_command(label="Montant HT", command=lambda: self._copy_field('montant'))
+        self.copy_menu.add_command(label="Resultat", command=lambda: self._copy_field('resultat'))
+        self.copy_menu.add_command(label="Concurrent", command=lambda: self._copy_field('concurrent'))
+        self.copy_menu.add_command(label="Date", command=lambda: self._copy_field('date'))
+        self.copy_menu.add_separator()
+        self.copy_menu.add_command(label="Toutes les informations", command=self._copy_all_fields)
+
+        self.context_menu.add_cascade(label="Copier", menu=self.copy_menu)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Ouvrir le chiffrage", command=self._open_chantier)
+        self.context_menu.add_command(label="Modifier le chantier", command=self._edit_chantier)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Supprimer le chantier", command=self._delete_chantier)
+
+        self.tree.bind('<Button-3>', self._show_context_menu)
 
         # Barre d'actions
         action_bar = tk.Frame(main_frame, bg=Theme.COLORS['bg'], height=56)
@@ -175,7 +215,7 @@ class MarchesAnalyseView:
 
     def _load_chantiers(self):
         """Charge la liste des chantiers"""
-        # Determiner le filtre
+        # Determiner le filtre resultat
         filtre = self.filter_var.get()
         resultat_filtre = None
 
@@ -185,7 +225,17 @@ class MarchesAnalyseView:
                     resultat_filtre = key
                     break
 
-        chantiers = self.db.get_chantiers(resultat_filtre)
+        # Determiner le filtre type de marche
+        type_marche_filtre_label = self.type_marche_var.get()
+        type_marche_filtre = None
+
+        if type_marche_filtre_label != "Tous":
+            for key, label in TYPES_MARCHE.items():
+                if label == type_marche_filtre_label:
+                    type_marche_filtre = key
+                    break
+
+        chantiers = self.db.get_chantiers(resultat_filtre, type_marche_filtre)
 
         # Vider le tableau
         for item in self.tree.get_children():
@@ -196,11 +246,15 @@ class MarchesAnalyseView:
             resultat = c.get('resultat', 'INCONNU')
             date = c.get('date_creation', '')[:10] if c.get('date_creation') else ''
 
+            type_marche = c.get('type_marche', 'PUBLIC')
+            type_marche_label = TYPES_MARCHE.get(type_marche, TYPES_MARCHE['PUBLIC'])
+
             self.tree.insert('', tk.END, values=(
                 c['id'],
                 c['nom'],
                 c.get('lieu', '') or '-',
                 c.get('lot', '') or '-',
+                type_marche_label,
                 f"{c.get('montant_ht', 0):.2f} EUR",
                 get_resultat_label(resultat),
                 c.get('concurrent', '') or '-',
@@ -303,6 +357,61 @@ class MarchesAnalyseView:
             f"Cette action est irreversible."):
             self.db.delete_chantier(chantier_id)
             self._load_chantiers()
+
+    def _show_context_menu(self, event):
+        """Affiche le menu contextuel"""
+        # Selectionner la ligne sous le curseur
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.tree.selection_set(item)
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+
+    def _copy_field(self, field):
+        """Copie un champ specifique dans le presse-papier"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        item = self.tree.item(selection[0])
+        values = item['values']
+
+        # Mapping des champs vers les indices
+        field_indices = {
+            'nom': 1,
+            'lieu': 2,
+            'lot': 3,
+            'type_marche': 4,
+            'montant': 5,
+            'resultat': 6,
+            'concurrent': 7,
+            'date': 8,
+        }
+
+        if field in field_indices:
+            value = str(values[field_indices[field]])
+            self.window.clipboard_clear()
+            self.window.clipboard_append(value)
+
+    def _copy_all_fields(self):
+        """Copie toutes les informations dans le presse-papier"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        item = self.tree.item(selection[0])
+        values = item['values']
+
+        text = f"""Nom: {values[1]}
+Lieu: {values[2]}
+Lot: {values[3]}
+Type de marche: {values[4]}
+Montant HT: {values[5]}
+Resultat: {values[6]}
+Concurrent: {values[7]}
+Date: {values[8]}"""
+
+        self.window.clipboard_clear()
+        self.window.clipboard_append(text)
 
     def _on_close(self):
         """Ferme la vue"""

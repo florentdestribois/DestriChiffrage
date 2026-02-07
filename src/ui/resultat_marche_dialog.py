@@ -38,16 +38,16 @@ class ResultatMarcheDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Resultat du marche")
-        self.dialog.geometry("550x480")
-        self.dialog.minsize(530, 460)
+        self.dialog.geometry("700x580")
+        self.dialog.minsize(650, 530)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
         # Centrer
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 550) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 480) // 2
+        x = parent.winfo_x() + (parent.winfo_width() - 700) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 580) // 2
         self.dialog.geometry(f"+{x}+{y}")
 
         # Variable resultat

@@ -26,8 +26,8 @@ class ProductDialog:
         # Creer la fenetre
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Nouveau produit" if not product_id else "Modifier le produit")
-        self.dialog.geometry("680x780")
-        self.dialog.minsize(660, 760)
+        self.dialog.geometry("680x860")
+        self.dialog.minsize(660, 840)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
@@ -63,10 +63,32 @@ class ProductDialog:
         main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Formulaire dans une card
-        form_card = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'], padx=20, pady=16,
-                            highlightbackground=Theme.COLORS['border'], highlightthickness=1)
-        form_card.pack(fill=tk.BOTH, expand=True)
+        # Formulaire dans une card avec scroll
+        form_outer = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'],
+                             highlightbackground=Theme.COLORS['border'], highlightthickness=1)
+        form_outer.pack(fill=tk.BOTH, expand=True)
+
+        # Canvas pour le scroll
+        canvas = tk.Canvas(form_outer, bg=Theme.COLORS['bg_alt'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(form_outer, orient="vertical", command=canvas.yview)
+        form_card = tk.Frame(canvas, bg=Theme.COLORS['bg_alt'], padx=20, pady=16)
+
+        form_card.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=form_card, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Scroll avec la molette (seulement quand la souris est sur le canvas)
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        def _bind_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        def _unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        canvas.bind("<Enter>", _bind_mousewheel)
+        canvas.bind("<Leave>", _unbind_mousewheel)
 
         self.entries = {}
         fields = [
@@ -75,6 +97,7 @@ class ProductDialog:
             ('sous_categorie_2', 'Sous-categorie 2', 'combobox'),
             ('sous_categorie_3', 'Sous-categorie 3', 'combobox'),
             ('designation', 'Designation *', 'entry'),
+            ('description', 'Description', 'text'),
             ('hauteur', 'Hauteur (mm)', 'entry'),
             ('largeur', 'Largeur (mm)', 'entry'),
             ('prix_achat', 'Prix Achat HT (EUR)', 'entry'),
@@ -106,7 +129,8 @@ class ProductDialog:
             elif widget_type == 'text':
                 widget = tk.Text(form_card, width=38, height=3, font=Theme.FONTS['body'],
                                bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'], bd=1, relief='solid')
-                widget.insert('1.0', self.data.get(field, ''))
+                text_value = self.data.get(field, '') or ''
+                widget.insert('1.0', text_value)
                 widget.grid(row=i, column=1, sticky='w', padx=5, pady=8)
             elif widget_type == 'file':
                 # Frame pour le champ fichier + boutons
@@ -1015,6 +1039,7 @@ class AboutDialog:
         dialog = tk.Toplevel(parent)
         dialog.title("A propos")
         dialog.geometry("480x440")
+        dialog.minsize(460, 420)
         dialog.transient(parent)
         dialog.grab_set()
         dialog.resizable(False, False)

@@ -41,6 +41,7 @@ class CartPanel(tk.Toplevel):
 
         self.title("Panier d'articles")
         self.geometry("700x500")
+        self.minsize(650, 450)
         self.transient(parent)
         self.resizable(True, True)
 

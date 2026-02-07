@@ -40,6 +40,7 @@ class CartExportDialog(tk.Toplevel):
 
         self.title("Exporter le panier")
         self.geometry("550x450")
+        self.minsize(530, 430)
         self.transient(parent)
         self.grab_set()
         self.resizable(False, False)

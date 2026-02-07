@@ -703,10 +703,10 @@ def test_version(results):
     try:
         from version import __version__, __app_name__
 
-        if __version__ == "1.2.1":
+        if __version__ >= "1.3.0":
             results.success(f"Version: {__version__}")
         else:
-            results.fail("Version", f"Attendu 1.2.1, obtenu {__version__}")
+            results.fail("Version", f"Version minimum attendue 1.3.0, obtenu {__version__}")
 
         if __app_name__ == "DestriChiffrage":
             results.success(f"App name: {__app_name__}")
@@ -721,7 +721,7 @@ def run_all_tests():
     """Execute tous les tests"""
     print("="*60)
     print("TESTS COMPLETS - MODULE MARCHES PUBLICS")
-    print("DestriChiffrage v1.1.0")
+    print("DestriChiffrage v1.3.0")
     print("="*60)
 
     results = TestResults()

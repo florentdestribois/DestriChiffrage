@@ -110,6 +110,31 @@ class Database:
             cursor.execute("ALTER TABLE produits ADD COLUMN sous_categorie_3 TEXT")
         except:
             pass
+        # Migration v1.3.0: ajouter colonne description dans produits
+        try:
+            cursor.execute("ALTER TABLE produits ADD COLUMN description TEXT")
+        except:
+            pass
+
+        # Migration v1.3.0: ajouter colonnes nom_client et type_marche dans chantiers
+        try:
+            cursor.execute("ALTER TABLE chantiers ADD COLUMN nom_client TEXT")
+        except:
+            pass
+        try:
+            cursor.execute("ALTER TABLE chantiers ADD COLUMN type_marche TEXT DEFAULT 'PUBLIC'")
+        except:
+            pass
+
+        # Migration v1.3.0: ajouter colonnes description et taux_tva dans prix_marche
+        try:
+            cursor.execute("ALTER TABLE prix_marche ADD COLUMN description TEXT")
+        except:
+            pass
+        try:
+            cursor.execute("ALTER TABLE prix_marche ADD COLUMN taux_tva REAL DEFAULT 20")
+        except:
+            pass
 
         # Table des categories
         cursor.execute('''
@@ -150,6 +175,8 @@ class Database:
             CREATE TABLE IF NOT EXISTS chantiers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nom TEXT NOT NULL,
+                nom_client TEXT,
+                type_marche TEXT DEFAULT 'PUBLIC',
                 lieu TEXT,
                 type_projet TEXT,
                 lot TEXT,
@@ -171,6 +198,7 @@ class Database:
                 code TEXT,
                 niveau INTEGER DEFAULT 4,
                 designation TEXT NOT NULL,
+                description TEXT,
                 categorie TEXT,
                 largeur_mm INTEGER,
                 hauteur_mm INTEGER,
@@ -186,6 +214,7 @@ class Database:
                 cout_mo_total REAL DEFAULT 0,
                 cout_revient REAL DEFAULT 0,
                 marge_pct REAL DEFAULT 20,
+                taux_tva REAL DEFAULT 20,
                 prix_unitaire_ht REAL DEFAULT 0,
                 prix_total_ht REAL DEFAULT 0,
                 date_creation TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -592,16 +621,17 @@ class Database:
         fiche_tech = self.make_fiche_path_relative(data.get('fiche_technique', ''))
         devis_fournisseur = self.make_fiche_path_relative(data.get('devis_fournisseur', ''))
         cursor.execute('''
-            INSERT INTO produits (categorie, sous_categorie, sous_categorie_2, sous_categorie_3, designation, dimensions,
+            INSERT INTO produits (categorie, sous_categorie, sous_categorie_2, sous_categorie_3, designation, description, dimensions,
                                  hauteur, largeur, prix_achat, reference, fournisseur, chantier, notes,
                                  fiche_technique, devis_fournisseur)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('categorie', ''),
             data.get('sous_categorie', ''),
             data.get('sous_categorie_2', ''),
             data.get('sous_categorie_3', ''),
             data.get('designation', ''),
+            data.get('description', ''),
             data.get('dimensions', ''),
             data.get('hauteur'),
             data.get('largeur'),
@@ -638,7 +668,7 @@ class Database:
         devis_fournisseur = self.make_fiche_path_relative(data.get('devis_fournisseur', ''))
         cursor.execute('''
             UPDATE produits SET
-                categorie=?, sous_categorie=?, sous_categorie_2=?, sous_categorie_3=?, designation=?, dimensions=?,
+                categorie=?, sous_categorie=?, sous_categorie_2=?, sous_categorie_3=?, designation=?, description=?, dimensions=?,
                 hauteur=?, largeur=?, prix_achat=?, reference=?, fournisseur=?, chantier=?, notes=?,
                 fiche_technique=?, devis_fournisseur=?, date_modification=CURRENT_TIMESTAMP
             WHERE id=?
@@ -648,6 +678,7 @@ class Database:
             data.get('sous_categorie_2', ''),
             data.get('sous_categorie_3', ''),
             data.get('designation', ''),
+            data.get('description', ''),
             data.get('dimensions', ''),
             data.get('hauteur'),
             data.get('largeur'),
@@ -714,15 +745,15 @@ class Database:
             writer = csv.writer(f, delimiter=delimiter)
             # En-tetes (meme format que l'export)
             headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
-                      'DESIGNATION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
+                      'DESIGNATION', 'DESCRIPTION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
                       'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
             writer.writerow(headers)
 
             # Exemple de lignes (chemins relatifs au dossier data)
             examples = [
-                ['STANDARD', 'Porte interieure', '', '', 'Porte pleine 83x204', '2040', '830', '125.50', 'REF001', 'Dispano', 'Projet A', 'Fiches_techniques\\porte_standard.pdf', 'Devis_fournisseur\\devis_001.pdf'],
-                ['COUPE-FEU', 'EI30', 'Bloc-porte', '', 'Bloc-porte CF 1/2h', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Projet B', 'Fiches_techniques\\Portes_et_chassis\\EI30\\fiche.pdf', ''],
-                ['ACOUSTIQUE', 'RA 35dB', '', '', 'Porte acoustique isolee', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Projet C', '', 'Devis_fournisseur\\devis_002.pdf'],
+                ['STANDARD', 'Porte interieure', '', '', 'Porte pleine 83x204', 'Porte interieure pleine en bois massif, finition laquee blanc', '2040', '830', '125.50', 'REF001', 'Dispano', 'Projet A', 'Fiches_techniques\\porte_standard.pdf', 'Devis_fournisseur\\devis_001.pdf'],
+                ['COUPE-FEU', 'EI30', 'Bloc-porte', '', 'Bloc-porte CF 1/2h', 'Bloc-porte coupe-feu EI30, ame pleine, huisserie metal', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Projet B', 'Fiches_techniques\\Portes_et_chassis\\EI30\\fiche.pdf', ''],
+                ['ACOUSTIQUE', 'RA 35dB', '', '', 'Porte acoustique isolee', 'Porte acoustique haute performance, affaiblissement 35dB', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Projet C', '', 'Devis_fournisseur\\devis_002.pdf'],
             ]
             for example in examples:
                 writer.writerow(example)
@@ -745,6 +776,7 @@ class Database:
                 'SOUS-CATEGORIE 2': 'sous_categorie_2',
                 'SOUS-CATEGORIE 3': 'sous_categorie_3',
                 'DESIGNATION': 'designation',
+                'DESCRIPTION': 'description',
                 'DIMENSIONS': 'dimensions',
                 'HAUTEUR': 'hauteur',
                 'LARGEUR': 'largeur',
@@ -1124,14 +1156,20 @@ class Database:
 
     # ==================== CHANTIERS ====================
 
-    def get_chantiers(self, resultat: str = None) -> List[Dict]:
-        """Recupere tous les chantiers"""
+    def get_chantiers(self, resultat: str = None, type_marche: str = None) -> List[Dict]:
+        """Recupere tous les chantiers avec filtres optionnels"""
         cursor = self.conn.cursor()
         query = "SELECT * FROM chantiers"
+        conditions = []
         params = []
         if resultat:
-            query += " WHERE resultat = ?"
+            conditions.append("resultat = ?")
             params.append(resultat)
+        if type_marche:
+            conditions.append("type_marche = ?")
+            params.append(type_marche)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY date_creation DESC"
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
@@ -1147,10 +1185,12 @@ class Database:
         """Ajoute un nouveau chantier"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO chantiers (nom, lieu, type_projet, lot, notes, resultat, montant_ht)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO chantiers (nom, nom_client, type_marche, lieu, type_projet, lot, notes, resultat, montant_ht)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('nom', ''),
+            data.get('nom_client', ''),
+            data.get('type_marche', 'PUBLIC'),
             data.get('lieu', ''),
             data.get('type_projet', ''),
             data.get('lot', ''),
@@ -1166,13 +1206,16 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute('''
             UPDATE chantiers SET
-                nom = ?, lieu = ?, type_projet = ?, lot = ?,
+                nom = ?, nom_client = ?, type_marche = ?,
+                lieu = ?, type_projet = ?, lot = ?,
                 montant_ht = ?, resultat = ?, concurrent = ?,
                 montant_concurrent = ?, notes = ?,
                 date_modification = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (
             data.get('nom', ''),
+            data.get('nom_client', ''),
+            data.get('type_marche', 'PUBLIC'),
             data.get('lieu', ''),
             data.get('type_projet', ''),
             data.get('lot', ''),
@@ -1240,16 +1283,17 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute('''
             INSERT INTO prix_marche (
-                chantier_id, code, niveau, designation, categorie,
+                chantier_id, code, niveau, designation, description, categorie,
                 largeur_mm, hauteur_mm, caracteristiques, unite,
-                quantite, localisation, notes, marge_pct,
+                quantite, localisation, notes, marge_pct, taux_tva,
                 temps_conception, temps_fabrication, temps_pose
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             chantier_id,
             data.get('code', ''),
             data.get('niveau', 4),
             data.get('designation', ''),
+            data.get('description', ''),
             data.get('categorie', ''),
             data.get('largeur_mm'),
             data.get('hauteur_mm'),
@@ -1259,6 +1303,7 @@ class Database:
             data.get('localisation', ''),
             data.get('notes', ''),
             data.get('marge_pct', self.get_marge_marche()),
+            data.get('taux_tva', 20),
             data.get('temps_conception', 0),
             data.get('temps_fabrication', 0),
             data.get('temps_pose', 0)
@@ -1274,15 +1319,16 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute('''
             UPDATE prix_marche SET
-                code = ?, designation = ?, categorie = ?,
+                code = ?, designation = ?, description = ?, categorie = ?,
                 largeur_mm = ?, hauteur_mm = ?, caracteristiques = ?,
                 unite = ?, quantite = ?, localisation = ?, notes = ?,
                 temps_conception = ?, temps_fabrication = ?, temps_pose = ?,
-                marge_pct = ?
+                marge_pct = ?, taux_tva = ?
             WHERE id = ?
         ''', (
             data.get('code', ''),
             data.get('designation', ''),
+            data.get('description', ''),
             data.get('categorie', ''),
             data.get('largeur_mm'),
             data.get('hauteur_mm'),
@@ -1295,6 +1341,7 @@ class Database:
             data.get('temps_fabrication', 0),
             data.get('temps_pose', 0),
             data.get('marge_pct', 25),
+            data.get('taux_tva', 20),
             article_id
         ))
         self.conn.commit()
@@ -1521,10 +1568,17 @@ class Database:
                     except:
                         hauteur = None
 
+                    # Taux TVA
+                    try:
+                        taux_tva = float(row.get('TVA', '20').replace(',', '.')) if row.get('TVA') else 20
+                    except:
+                        taux_tva = 20
+
                     self.add_article_dpgf(chantier_id, {
                         'code': row.get('CODE', ''),
                         'niveau': 4,
                         'designation': row.get('DESIGNATION', ''),
+                        'description': row.get('DESCRIPTION', ''),
                         'categorie': row.get('CATEGORIE', ''),
                         'largeur_mm': largeur,
                         'hauteur_mm': hauteur,
@@ -1533,6 +1587,7 @@ class Database:
                         'quantite': quantite,
                         'localisation': row.get('LOCALISATION', ''),
                         'notes': row.get('NOTES', ''),
+                        'taux_tva': taux_tva,
                     })
                     count += 1
 
@@ -1640,23 +1695,100 @@ class Database:
         # Utiliser la methode existante de copie
         return self._copy_pdf_files(produits, export_dir, include_fiches, include_devis)
 
+    def export_dpgf_odoo(self, chantier_id: int, filepath: str) -> int:
+        """
+        Exporte un DPGF au format Odoo CSV
+
+        Format:
+        - Ligne 1: En-tetes Odoo
+        - Ligne 2: Nom client + Premier article
+        - Ligne 3: Description du premier article
+        - Lignes suivantes: Alternance article/description
+
+        Args:
+            chantier_id: ID du chantier
+            filepath: Chemin du fichier CSV
+
+        Returns:
+            Nombre d'articles exportes
+        """
+        chantier = self.get_chantier(chantier_id)
+        if not chantier:
+            return 0
+
+        articles = self.get_articles_dpgf(chantier_id)
+        nom_client = chantier.get('nom_client', '') or chantier.get('nom', '')
+        reference = chantier.get('lot', '') or ''
+
+        with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+            writer = csv.writer(f, delimiter=';')
+
+            # En-tetes Odoo
+            headers = [
+                'Customer*',
+                'Order Lines/Products*',
+                'order_line/name',
+                'Order Lines/Quantity',
+                'Order Lines/Unit Price',
+                'Order Lines/Taxes',
+                'Customer Reference'
+            ]
+            writer.writerow(headers)
+
+            # Ecrire les articles
+            first_article = True
+            for article in articles:
+                # Formatter le taux de TVA pour Odoo
+                taux_tva = article.get('taux_tva', 20) or 20
+                if taux_tva == int(taux_tva):
+                    tva_str = f"{int(taux_tva)}% Ser"
+                else:
+                    tva_str = f"{taux_tva}% Ser"
+
+                # Ligne article
+                writer.writerow([
+                    nom_client if first_article else '',
+                    article.get('designation', ''),
+                    ' ',  # Espace - Description sur la ligne suivante
+                    article.get('quantite', 1),
+                    f"{article.get('prix_unitaire_ht', 0):.2f}",
+                    tva_str,
+                    reference if first_article else ''
+                ])
+
+                # Ligne description
+                description = article.get('description', '') or ''
+                writer.writerow([
+                    '',
+                    '',
+                    description,
+                    '',
+                    '',
+                    '',
+                    ''
+                ])
+
+                first_article = False
+
+        return len(articles)
+
     def create_dpgf_template(self, filepath: str):
         """Cree un template DPGF CSV vierge"""
         with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.writer(f, delimiter=';')
-            headers = ['CODE', 'NIVEAU', 'DESIGNATION', 'CATEGORIE', 'LARGEUR_MM', 'HAUTEUR_MM',
-                      'CARACTERISTIQUES', 'UNITE', 'QUANTITE', 'LOCALISATION', 'NOTES']
+            headers = ['CODE', 'NIVEAU', 'DESIGNATION', 'DESCRIPTION', 'CATEGORIE', 'LARGEUR_MM', 'HAUTEUR_MM',
+                      'CARACTERISTIQUES', 'UNITE', 'QUANTITE', 'LOCALISATION', 'NOTES', 'TVA']
             writer.writerow(headers)
 
             # Exemples
             examples = [
-                ['1', '1', 'LOT 1 - MENUISERIES INTERIEURES', '', '', '', '', '', '', '', ''],
-                ['1.1', '2', 'Blocs-portes', '', '', '', '', '', '', '', ''],
-                ['1.1.1', '3', 'Blocs-portes coupe-feu', '', '', '', '', '', '', '', ''],
-                ['1.1.1.1', '4', 'Bloc-porte EI30 204x83', 'COUPE-FEU', '830', '2040', 'EI30 - Huisserie metal', 'U', '5', 'Couloir RDC', ''],
-                ['1.1.1.2', '4', 'Bloc-porte EI60 204x93', 'COUPE-FEU', '930', '2040', 'EI60 - Huisserie metal', 'U', '3', 'Escalier', ''],
-                ['1.1.2', '3', 'Blocs-portes acoustiques', '', '', '', '', '', '', '', ''],
-                ['1.1.2.1', '4', 'Bloc-porte RA 35dB', 'ACOUSTIQUE', '830', '2040', 'RA 35dB', 'U', '8', 'Bureaux', ''],
+                ['1', '1', 'LOT 1 - MENUISERIES INTERIEURES', '', '', '', '', '', '', '', '', '', ''],
+                ['1.1', '2', 'Blocs-portes', '', '', '', '', '', '', '', '', '', ''],
+                ['1.1.1', '3', 'Blocs-portes coupe-feu', '', '', '', '', '', '', '', '', '', ''],
+                ['1.1.1.1', '4', 'Bloc-porte EI30 204x83', 'Bloc-porte coupe-feu 30 minutes avec huisserie metallique', 'COUPE-FEU', '830', '2040', 'EI30 - Huisserie metal', 'U', '5', 'Couloir RDC', '', '20'],
+                ['1.1.1.2', '4', 'Bloc-porte EI60 204x93', 'Bloc-porte coupe-feu 60 minutes avec huisserie metallique', 'COUPE-FEU', '930', '2040', 'EI60 - Huisserie metal', 'U', '3', 'Escalier', '', '20'],
+                ['1.1.2', '3', 'Blocs-portes acoustiques', '', '', '', '', '', '', '', '', '', ''],
+                ['1.1.2.1', '4', 'Bloc-porte RA 35dB', 'Bloc-porte acoustique 35dB pour bureaux', 'ACOUSTIQUE', '830', '2040', 'RA 35dB', 'U', '8', 'Bureaux', '', '20'],
             ]
             for ex in examples:
                 writer.writerow(ex)
