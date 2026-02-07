@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m PyInstaller*)",
+      "Bash(\"C:\\\\Program Files (x86)\\\\Inno Setup 6\\\\ISCC.exe\"*)",
+      "Bash(gh release*)",
+      "Bash(gh api*)",
+      "Bash(gh pr*)",
+      "Bash(git *)",
+      "Bash(dir *)",
+      "Bash(powershell -Command \"(Get-Item*)",
+      "Bash(cd *)"
+    ]
+  }
+}
