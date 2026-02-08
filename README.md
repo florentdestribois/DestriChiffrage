@@ -1,10 +1,17 @@
 # DestriChiffrage
 
-**Version 1.7.4**
+**Version 1.7.5**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Export PDF avec nommage personnalise (v1.7.5)
+- **Fix issue #22** : Options de nommage des fichiers PDF lors de l'export DPGF
+  - Prefixer les fichiers avec le code article DPGF (ex: `ART-001_42_Designation_fiche.pdf`)
+  - Choix des elements a inclure dans le nom: code article, ID produit, designation
+  - Apercu en temps reel du format de nommage dans le dialogue d'export
+  - Facilite le classement et l'identification des documents par lot/article
 
 ### Correction bug affichage recapitulatif (v1.7.4)
 - **Fix issue #23** : Le recapitulatif projet ne s'affiche plus involontairement lors de l'edition d'un article

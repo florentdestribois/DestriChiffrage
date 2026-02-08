@@ -1126,7 +1126,9 @@ class Database:
         }
 
     def _copy_pdf_files(self, produits: List[Dict], export_dir: str,
-                       include_fiches: bool, include_devis: bool) -> tuple:
+                       include_fiches: bool, include_devis: bool,
+                       produit_to_code_article: dict = None,
+                       naming_options: dict = None) -> tuple:
         """
         Copie les fichiers PDF des produits dans un dossier d'export
 
@@ -1135,6 +1137,11 @@ class Database:
             export_dir: Dossier de destination
             include_fiches: Copier les fiches techniques
             include_devis: Copier les devis fournisseur
+            produit_to_code_article: Mapping produit_id -> code article DPGF (issue #22)
+            naming_options: Options de nommage des fichiers (issue #22)
+                - prefix_code_article: Prefixer avec le code article DPGF
+                - include_id_produit: Inclure l'ID du produit
+                - include_designation: Inclure la designation du produit
 
         Returns:
             Tuple (nb_fiches_copiees, nb_devis_copies)
@@ -1144,6 +1151,16 @@ class Database:
 
         fiches_copied = 0
         devis_copied = 0
+
+        # Options par defaut (compatibilite ascendante)
+        if naming_options is None:
+            naming_options = {
+                'prefix_code_article': False,
+                'include_id_produit': True,
+                'include_designation': True
+            }
+        if produit_to_code_article is None:
+            produit_to_code_article = {}
 
         # Creer les sous-dossiers
         if include_fiches:
@@ -1163,13 +1180,41 @@ class Database:
             safe_designation = "".join(c for c in designation if c.isalnum() or c in (' ', '-', '_')).strip()
             safe_designation = safe_designation[:50]  # Limiter la longueur
 
+            # Construire le nom de fichier selon les options (issue #22)
+            name_parts = []
+
+            # Code article DPGF en prefix
+            if naming_options.get('prefix_code_article', False):
+                code_article = produit_to_code_article.get(product_id, '')
+                if code_article:
+                    # Nettoyer le code article
+                    safe_code = "".join(c for c in code_article if c.isalnum() or c in ('-', '_', '.')).strip()
+                    if safe_code:
+                        name_parts.append(safe_code)
+
+            # ID produit
+            if naming_options.get('include_id_produit', True):
+                name_parts.append(str(product_id))
+
+            # Designation
+            if naming_options.get('include_designation', True):
+                if safe_designation:
+                    name_parts.append(safe_designation)
+
+            # Construire le prefixe du nom de fichier
+            if name_parts:
+                name_prefix = "_".join(name_parts)
+            else:
+                # Fallback si aucune option selectionnee
+                name_prefix = str(product_id)
+
             # Copier la fiche technique
             if include_fiches and product.get('fiche_technique'):
                 src_path = self.resolve_fiche_path(product['fiche_technique'])
                 if src_path and os.path.exists(src_path):
                     try:
                         ext = os.path.splitext(src_path)[1]
-                        dst_name = f"{product_id}_{safe_designation}_fiche{ext}"
+                        dst_name = f"{name_prefix}_fiche{ext}"
                         dst_path = os.path.join(fiches_dir, dst_name)
                         shutil.copy2(src_path, dst_path)
                         fiches_copied += 1
@@ -1182,7 +1227,7 @@ class Database:
                 if src_path and os.path.exists(src_path):
                     try:
                         ext = os.path.splitext(src_path)[1]
-                        dst_name = f"{product_id}_{safe_designation}_devis{ext}"
+                        dst_name = f"{name_prefix}_devis{ext}"
                         dst_path = os.path.join(devis_dir, dst_name)
                         shutil.copy2(src_path, dst_path)
                         devis_copied += 1
@@ -1879,7 +1924,8 @@ class Database:
         return len(articles)
 
     def export_dpgf_files(self, chantier_id: int, export_dir: str,
-                         include_fiches: bool = True, include_devis: bool = True) -> tuple:
+                         include_fiches: bool = True, include_devis: bool = True,
+                         naming_options: dict = None) -> tuple:
         """
         Exporte les fichiers PDF (fiches techniques et devis) des produits lies aux articles DPGF
 
@@ -1888,6 +1934,10 @@ class Database:
             export_dir: Dossier de destination
             include_fiches: Copier les fiches techniques
             include_devis: Copier les devis fournisseur
+            naming_options: Options de nommage des fichiers (issue #22)
+                - prefix_code_article: Prefixer avec le code article DPGF
+                - include_id_produit: Inclure l'ID du produit
+                - include_designation: Inclure la designation du produit
 
         Returns:
             Tuple (nb_fiches_copiees, nb_devis_copies)
@@ -1895,12 +1945,20 @@ class Database:
         # Recuperer tous les produits lies aux articles du chantier
         articles = self.get_articles_dpgf(chantier_id)
 
-        # Collecter tous les produits uniques lies
+        # Creer le mapping produit_id -> code_article (issue #22)
+        # Un produit peut etre lie a plusieurs articles, on prend le premier code trouve
+        produit_to_code_article = {}
         produits_ids = set()
+
         for article in articles:
             produits_lies = self.get_produits_article(article['id'])
+            code_article = article.get('code', '') or ''
             for p in produits_lies:
-                produits_ids.add(p['produit_id'])
+                produit_id = p['produit_id']
+                produits_ids.add(produit_id)
+                # Ne pas ecraser si deja defini (garder le premier code)
+                if produit_id not in produit_to_code_article and code_article:
+                    produit_to_code_article[produit_id] = code_article
 
         # Recuperer les informations completes des produits
         produits = []
@@ -1909,8 +1967,9 @@ class Database:
             if produit:
                 produits.append(produit)
 
-        # Utiliser la methode existante de copie
-        return self._copy_pdf_files(produits, export_dir, include_fiches, include_devis)
+        # Utiliser la methode existante de copie avec les nouvelles options
+        return self._copy_pdf_files(produits, export_dir, include_fiches, include_devis,
+                                   produit_to_code_article, naming_options)
 
     def export_dpgf_odoo(self, chantier_id: int, filepath: str) -> int:
         """

@@ -28,17 +28,23 @@ class DPGFExportDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Exporter le DPGF")
-        self.dialog.geometry("750x650")
-        self.dialog.minsize(700, 600)
+
+        # Ouvrir sur toute la hauteur de l'ecran
+        screen_height = self.dialog.winfo_screenheight()
+        window_height = screen_height - 80  # Marge pour la barre des taches
+        self.dialog.geometry(f"1100x{window_height}")
+        self.dialog.minsize(1000, 800)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
-        # Centrer
+        # Centrer horizontalement, en haut de l'ecran
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 750) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 650) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        x = (self.dialog.winfo_screenwidth() - 1100) // 2
+        self.dialog.geometry(f"+{x}+0")
+
+        # Charger les donnees du premier article et produit pour l'apercu
+        self._load_preview_data()
 
         # Variables
         self.version_var = tk.StringVar(value="client")
@@ -46,8 +52,42 @@ class DPGFExportDialog:
         self.include_fiches_var = tk.BooleanVar(value=False)
         self.include_devis_var = tk.BooleanVar(value=False)
 
+        # Options de nommage des fichiers PDF (issue #22)
+        self.prefix_code_article_var = tk.BooleanVar(value=True)
+        self.include_id_produit_var = tk.BooleanVar(value=False)
+        self.include_designation_var = tk.BooleanVar(value=True)
+
         self._create_widgets()
         self.dialog.wait_window()
+
+    def _load_preview_data(self):
+        """Charge les donnees du premier article et produit pour l'apercu"""
+        self.preview_code_article = ""
+        self.preview_produit_id = ""
+        self.preview_designation = ""
+
+        # Recuperer le premier article du chantier
+        articles = self.db.get_articles_dpgf(self.chantier_id)
+        if articles:
+            first_article = articles[0]
+            self.preview_code_article = first_article.get('code', '') or ''
+
+            # Recuperer le premier produit lie a cet article
+            produits_lies = self.db.get_produits_article(first_article['id'])
+            if produits_lies:
+                first_liaison = produits_lies[0]
+                self.preview_produit_id = str(first_liaison.get('produit_id', ''))
+                produit = self.db.get_produit(first_liaison['produit_id'])
+                if produit:
+                    self.preview_designation = produit.get('designation', '') or ''
+
+        # Valeurs par defaut si aucune donnee
+        if not self.preview_code_article:
+            self.preview_code_article = "(aucun code)"
+        if not self.preview_produit_id:
+            self.preview_produit_id = "(aucun ID)"
+        if not self.preview_designation:
+            self.preview_designation = "(aucune designation)"
 
     def _create_widgets(self):
         """Cree les widgets"""
@@ -189,19 +229,67 @@ class DPGFExportDialog:
                       variable=self.include_fiches_var, font=Theme.FONTS['body'],
                       bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
-                      cursor='hand2').pack(anchor='w', pady=(8, 4))
+                      cursor='hand2', command=self._toggle_naming_options).pack(anchor='w', pady=(8, 4))
 
         tk.Checkbutton(self.pdf_card, text="Inclure les devis fournisseur",
                       variable=self.include_devis_var, font=Theme.FONTS['body'],
                       bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
                       selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
-                      cursor='hand2').pack(anchor='w')
+                      cursor='hand2', command=self._toggle_naming_options).pack(anchor='w')
 
         tk.Label(self.pdf_card,
                 text="Les fichiers seront copies dans des sous-dossiers Fiches_techniques/ et Devis_fournisseur/",
                 font=Theme.FONTS['tiny'],
                 bg=Theme.COLORS['bg_alt'],
                 fg=Theme.COLORS['text_muted']).pack(anchor='w', pady=(8, 0))
+
+        # Section options de nommage des fichiers PDF (issue #22)
+        # Cette section est affichee uniquement si fiches ou devis sont selectionnes
+        self.naming_frame = tk.Frame(self.pdf_card, bg=Theme.COLORS['bg_alt'])
+
+        ttk.Separator(self.naming_frame, orient='horizontal').pack(fill=tk.X, pady=(12, 8))
+
+        tk.Label(self.naming_frame, text="NOMMAGE DES FICHIERS",
+                font=Theme.FONTS['small_bold'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['secondary']).pack(anchor='w', pady=(0, 8))
+
+        tk.Checkbutton(self.naming_frame, text="Prefixer avec le code article DPGF",
+                      variable=self.prefix_code_article_var, font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
+                      cursor='hand2', command=self._update_naming_preview).pack(anchor='w', pady=(0, 4))
+
+        tk.Checkbutton(self.naming_frame, text="Inclure l'ID du produit",
+                      variable=self.include_id_produit_var, font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
+                      cursor='hand2', command=self._update_naming_preview).pack(anchor='w', pady=(0, 4))
+
+        tk.Checkbutton(self.naming_frame, text="Inclure la designation du produit",
+                      variable=self.include_designation_var, font=Theme.FONTS['body'],
+                      bg=Theme.COLORS['bg_alt'], fg=Theme.COLORS['text'],
+                      selectcolor=Theme.COLORS['bg'], activebackground=Theme.COLORS['bg_alt'],
+                      cursor='hand2', command=self._update_naming_preview).pack(anchor='w')
+
+        # Apercu du format de nom
+        preview_frame = tk.Frame(self.naming_frame, bg=Theme.COLORS['bg'], padx=8, pady=6)
+        preview_frame.pack(fill=tk.X, pady=(8, 0))
+
+        tk.Label(preview_frame, text="Apercu:",
+                font=Theme.FONTS['tiny'],
+                bg=Theme.COLORS['bg'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.naming_preview_label = tk.Label(preview_frame, text="",
+                font=Theme.FONTS['mono'],
+                bg=Theme.COLORS['bg'],
+                fg=Theme.COLORS['text'])
+        self.naming_preview_label.pack(anchor='w')
+
+        self._update_naming_preview()
+        # Masquer par defaut (sera affiche si fiches ou devis selectionnes)
+        # self.naming_frame n'est pas pack() ici, il sera affiche par _toggle_naming_options
 
         # Barre de progression (cachee par defaut)
         self.progress_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg'])
@@ -241,6 +329,44 @@ class DPGFExportDialog:
         """Gere le changement de version d'export"""
         # La section PDF est toujours visible pour tous les formats
         pass
+
+    def _toggle_naming_options(self):
+        """Affiche ou masque les options de nommage selon si fiches ou devis sont selectionnes"""
+        if self.include_fiches_var.get() or self.include_devis_var.get():
+            self.naming_frame.pack(fill=tk.X)
+            self._update_naming_preview()
+        else:
+            self.naming_frame.pack_forget()
+
+    def _update_naming_preview(self):
+        """Met a jour l'apercu du format de nommage des fichiers base sur le premier article/produit"""
+        parts = []
+
+        if self.prefix_code_article_var.get():
+            if self.preview_code_article and self.preview_code_article != "(aucun code)":
+                # Nettoyer le code article
+                safe_code = "".join(c for c in self.preview_code_article if c.isalnum() or c in ('-', '_', '.')).strip()
+                if safe_code:
+                    parts.append(safe_code)
+
+        if self.include_id_produit_var.get():
+            if self.preview_produit_id and self.preview_produit_id != "(aucun ID)":
+                parts.append(self.preview_produit_id)
+
+        if self.include_designation_var.get():
+            if self.preview_designation and self.preview_designation != "(aucune designation)":
+                # Nettoyer la designation
+                safe_des = "".join(c for c in self.preview_designation if c.isalnum() or c in (' ', '-', '_')).strip()
+                safe_des = safe_des[:50]  # Limiter la longueur
+                if safe_des:
+                    parts.append(safe_des)
+
+        if parts:
+            preview = "_".join(parts) + "_fiche.pdf"
+        else:
+            preview = "(aucune option selectionnee - nom par defaut)"
+
+        self.naming_preview_label.config(text=preview)
 
     def _export(self):
         """Execute l'export"""
@@ -296,11 +422,18 @@ class DPGFExportDialog:
             nb_fiches = 0
             nb_devis = 0
             if (include_fiches or include_devis) and export_dir:
+                # Options de nommage (issue #22)
+                naming_options = {
+                    'prefix_code_article': self.prefix_code_article_var.get(),
+                    'include_id_produit': self.include_id_produit_var.get(),
+                    'include_designation': self.include_designation_var.get()
+                }
                 nb_fiches, nb_devis = self.db.export_dpgf_files(
                     self.chantier_id,
                     export_dir,
                     include_fiches,
-                    include_devis
+                    include_devis,
+                    naming_options
                 )
 
             # Arreter la barre de progression
