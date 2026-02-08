@@ -25,6 +25,7 @@ class DPGFChiffrageView:
         self.chantier_id = chantier_id
         self.on_close_callback = on_close_callback
         self.current_article_id = None
+        self._is_loading = False  # Flag pour eviter les evenements pendant le rechargement
 
         # Charger les donnees du chantier
         self.chantier = self.db.get_chantier(chantier_id) or {}
@@ -585,15 +586,26 @@ class DPGFChiffrageView:
             self.couts_labels[key].pack(side=tk.RIGHT)
 
     def _load_articles(self):
-        """Charge les articles du chantier"""
+        """Charge les articles du chantier
+
+        Note: Le flag _is_loading empeche les evenements de selection de
+        declencher l'affichage du recapitulatif pendant le rechargement (fix issue #23)
+        """
+        # Activer le flag pour bloquer les evenements de selection
+        self._is_loading = True
+
+        # Sauvegarder l'article actuellement selectionne
+        selected_article_id = self.current_article_id
+
         articles = self.db.get_articles_dpgf(self.chantier_id)
 
         for item in self.articles_tree.get_children():
             self.articles_tree.delete(item)
 
         total = 0
+        selected_item = None
         for a in articles:
-            self.articles_tree.insert('', tk.END, values=(
+            item_id = self.articles_tree.insert('', tk.END, values=(
                 a['id'],
                 a['code'] or '-',
                 a['designation'],
@@ -604,8 +616,19 @@ class DPGFChiffrageView:
                 f"{a['prix_total_ht']:.2f}",
             ))
             total += a['prix_total_ht']
+            # Memoriser l'item correspondant a l'article selectionne
+            if a['id'] == selected_article_id:
+                selected_item = item_id
 
         self.total_label.config(text=f"Total: {total:.2f} EUR HT")
+
+        # Restaurer la selection si un article etait selectionne
+        if selected_item:
+            self.articles_tree.selection_set(selected_item)
+            self.articles_tree.see(selected_item)
+
+        # Desactiver le flag
+        self._is_loading = False
 
         # Mettre a jour le recap si visible
         if not self.current_article_id:
@@ -625,7 +648,20 @@ class DPGFChiffrageView:
         self.total_label.config(text=f"Total: {total:.2f} EUR HT")
 
     def _on_tree_click(self, event):
-        """Gere le clic sur le treeview - deselectionne si clic sur zone vide"""
+        """Gere le clic sur le treeview - deselectionne si clic sur zone vide
+
+        Note: On verifie que le clic provient bien du widget treeview lui-meme
+        pour eviter que le recapitulatif ne s'affiche involontairement lors de
+        l'edition d'un article (fix issue #23)
+        """
+        # Ignorer pendant le rechargement
+        if self._is_loading:
+            return
+
+        # Verifier que le clic est bien sur le treeview (pas un autre widget)
+        if event.widget != self.articles_tree:
+            return
+
         item = self.articles_tree.identify_row(event.y)
         if not item:
             # Clic sur zone vide - deselectionner
@@ -635,6 +671,10 @@ class DPGFChiffrageView:
 
     def _on_article_select(self, event=None):
         """Selection d'un article"""
+        # Ignorer les evenements pendant le rechargement (fix issue #23)
+        if self._is_loading:
+            return
+
         selection = self.articles_tree.selection()
         if not selection:
             # Aucune selection - afficher le recap

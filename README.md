@@ -1,10 +1,16 @@
 # DestriChiffrage
 
-**Version 1.7.0**
+**Version 1.7.4**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Correction bug affichage recapitulatif (v1.7.4)
+- **Fix issue #23** : Le recapitulatif projet ne s'affiche plus involontairement lors de l'edition d'un article
+  - Verification que le clic provient bien du widget treeview avant de deselectionner
+  - Le recapitulatif s'affiche uniquement lors d'un clic intentionnel sur la zone vide du treeview
+  - L'edition des champs (description, heures MO, TVA) ne provoque plus la perte du contexte
 
 ### Recapitulatif projet et marge personnalisee (v1.7.0)
 - **Recapitulatif projet** : Affichage automatique quand aucun article n'est selectionne dans la vue chiffrage DPGF
