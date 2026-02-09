@@ -544,7 +544,9 @@ class Database:
     def search_produits(self, terme: str = "", categorie: str = "", actif_only: bool = True,
                         hauteur: int = None, largeur: int = None,
                         sous_categorie: str = "", sous_categorie_2: str = "",
-                        sous_categorie_3: str = "") -> List[Dict]:
+                        sous_categorie_3: str = "",
+                        has_fiche_technique: bool = None,
+                        has_devis_fournisseur: bool = None) -> List[Dict]:
         """
         Recherche des produits
 
@@ -557,6 +559,8 @@ class Database:
             sous_categorie: Filtrer par sous-categorie 1
             sous_categorie_2: Filtrer par sous-categorie 2
             sous_categorie_3: Filtrer par sous-categorie 3
+            has_fiche_technique: Filtrer les produits avec fiche technique (True/False/None)
+            has_devis_fournisseur: Filtrer les produits avec devis fournisseur (True/False/None)
 
         Returns:
             Liste des produits correspondants
@@ -596,6 +600,17 @@ class Database:
         if largeur:
             query += " AND largeur = ?"
             params.append(largeur)
+
+        # Filtres documents (fix issue #27)
+        if has_fiche_technique is True:
+            query += " AND fiche_technique IS NOT NULL AND fiche_technique != ''"
+        elif has_fiche_technique is False:
+            query += " AND (fiche_technique IS NULL OR fiche_technique = '')"
+
+        if has_devis_fournisseur is True:
+            query += " AND devis_fournisseur IS NOT NULL AND devis_fournisseur != ''"
+        elif has_devis_fournisseur is False:
+            query += " AND (devis_fournisseur IS NULL OR devis_fournisseur = '')"
 
         query += " ORDER BY categorie, sous_categorie, designation"
         cursor.execute(query, params)

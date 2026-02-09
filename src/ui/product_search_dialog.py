@@ -48,6 +48,8 @@ class ProductSearchDialog:
         self.subcategory_var = tk.StringVar(value="Toutes")
         self.subcategory2_var = tk.StringVar(value="Toutes")
         self.subcategory3_var = tk.StringVar(value="Toutes")
+        self.has_fiche_var = tk.IntVar(value=0)
+        self.has_devis_var = tk.IntVar(value=0)
         self.quantity_var = tk.StringVar(value="1")
 
         self._create_widgets()
@@ -149,6 +151,25 @@ class ProductSearchDialog:
         self.subcategory3_combo['values'] = ['Toutes']
         self.subcategory3_combo.pack(side=tk.LEFT, padx=(8, 0))
         self.subcategory3_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
+
+        # Filtres documents (fix issue #27)
+        self.fiche_check = tk.Checkbutton(search_frame2, text="Avec fiche",
+                                          variable=self.has_fiche_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self._on_search)
+        self.fiche_check.pack(side=tk.LEFT, padx=(16, 0))
+
+        self.devis_check = tk.Checkbutton(search_frame2, text="Avec devis",
+                                          variable=self.has_devis_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self._on_search)
+        self.devis_check.pack(side=tk.LEFT, padx=(8, 0))
 
         # Tableau des produits
         table_frame = tk.Frame(main_frame, bg=Theme.COLORS['bg_alt'],
@@ -303,11 +324,17 @@ class ProductSearchDialog:
         sous_cat2 = self.subcategory2_var.get()
         sous_cat3 = self.subcategory3_var.get()
 
+        # Filtres documents (fix issue #27)
+        has_fiche = True if self.has_fiche_var.get() == 1 else None
+        has_devis = True if self.has_devis_var.get() == 1 else None
+
         produits = self.db.search_produits(
             terme, categorie,
             sous_categorie=sous_cat,
             sous_categorie_2=sous_cat2,
-            sous_categorie_3=sous_cat3
+            sous_categorie_3=sous_cat3,
+            has_fiche_technique=has_fiche,
+            has_devis_fournisseur=has_devis
         )
 
         # Vider le tableau
@@ -495,6 +522,8 @@ class MultiProductSearchDialog:
         # Variables
         self.search_var = tk.StringVar()
         self.category_var = tk.StringVar(value="Toutes")
+        self.has_fiche_var = tk.IntVar(value=0)
+        self.has_devis_var = tk.IntVar(value=0)
 
         self._create_widgets()
         self._load_products()
@@ -546,6 +575,25 @@ class MultiProductSearchDialog:
         self.category_combo['values'] = cats
         self.category_combo.pack(side=tk.LEFT, padx=(8, 0))
         self.category_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
+
+        # Filtres documents (fix issue #27)
+        self.fiche_check = tk.Checkbutton(search_frame, text="Avec fiche",
+                                          variable=self.has_fiche_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self._on_search)
+        self.fiche_check.pack(side=tk.LEFT, padx=(12, 0))
+
+        self.devis_check = tk.Checkbutton(search_frame, text="Avec devis",
+                                          variable=self.has_devis_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self._on_search)
+        self.devis_check.pack(side=tk.LEFT, padx=(8, 0))
 
         # Tableau catalogue
         cat_table_frame = tk.Frame(left_frame, bg=Theme.COLORS['bg_alt'],
@@ -658,7 +706,13 @@ class MultiProductSearchDialog:
         terme = self.search_var.get()
         categorie = self.category_var.get()
 
-        produits = self.db.search_produits(terme, categorie)
+        # Filtres documents (fix issue #27)
+        has_fiche = True if self.has_fiche_var.get() == 1 else None
+        has_devis = True if self.has_devis_var.get() == 1 else None
+
+        produits = self.db.search_produits(terme, categorie,
+                                           has_fiche_technique=has_fiche,
+                                           has_devis_fournisseur=has_devis)
 
         for item in self.cat_tree.get_children():
             self.cat_tree.delete(item)

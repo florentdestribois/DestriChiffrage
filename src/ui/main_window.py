@@ -51,6 +51,8 @@ class MainWindow:
         self.hauteur_var = tk.StringVar(value="Toutes")
         self.largeur_var = tk.StringVar(value="Toutes")
         self.fournisseur_var = tk.StringVar(value="Tous")
+        self.has_fiche_var = tk.IntVar(value=0)
+        self.has_devis_var = tk.IntVar(value=0)
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
 
         # Charger les icones PDF, Devis et Devis rapide
@@ -79,6 +81,40 @@ class MainWindow:
 
         # Bindings
         self.search_var.trace('w', lambda *args: self.on_search())
+
+        # Verification automatique des mises a jour au demarrage (en arriere-plan)
+        self.root.after(3000, self._check_updates_background)
+
+    def _check_updates_background(self):
+        """Verifie les mises a jour en arriere-plan au demarrage (silencieux)"""
+        import threading
+
+        def check_in_thread():
+            try:
+                from updater import Updater
+                updater = Updater()
+                update_info = updater.check_for_updates()
+
+                # Afficher le dialogue uniquement si une mise a jour est disponible
+                if update_info.get('available', False):
+                    self.root.after(0, lambda: self._show_update_dialog(update_info))
+                # Si pas de mise a jour ou erreur -> ne rien faire (silencieux)
+
+            except Exception:
+                # Ignorer silencieusement toutes les erreurs au demarrage
+                pass
+
+        thread = threading.Thread(target=check_in_thread)
+        thread.daemon = True
+        thread.start()
+
+    def _show_update_dialog(self, update_info):
+        """Affiche le dialogue de mise a jour"""
+        try:
+            from ui.update_dialog import UpdateDialog
+            UpdateDialog(self.root, update_info)
+        except Exception:
+            pass  # Ignorer les erreurs d'affichage
 
     def _load_pdf_icon(self):
         """Charge l'icone PDF"""
@@ -429,6 +465,32 @@ class MainWindow:
         self.fournisseur_combo.pack(pady=(2, 0))
         self.fournisseur_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
 
+        # Filtres documents (fix issue #27)
+        docs_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
+        docs_frame.pack(side=tk.LEFT, padx=(0, 24))
+
+        tk.Label(docs_frame, text="Documents",
+                font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.fiche_check = tk.Checkbutton(docs_frame, text="Avec fiche technique",
+                                          variable=self.has_fiche_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self.on_search)
+        self.fiche_check.pack(anchor='w')
+
+        self.devis_check = tk.Checkbutton(docs_frame, text="Avec devis fournisseur",
+                                          variable=self.has_devis_var,
+                                          font=Theme.FONTS['small'],
+                                          bg=Theme.COLORS['bg_alt'],
+                                          fg=Theme.COLORS['text'],
+                                          activebackground=Theme.COLORS['bg_alt'],
+                                          command=self.on_search)
+        self.devis_check.pack(anchor='w')
+
         # Bouton effacer
         clear_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
         clear_frame.pack(side=tk.LEFT, pady=(12, 0))
@@ -731,8 +793,14 @@ class MainWindow:
         hauteur = int(hauteur_str) if hauteur_str and hauteur_str != "Toutes" else None
         largeur = int(largeur_str) if largeur_str and largeur_str != "Toutes" else None
 
+        # Filtres documents (fix issue #27)
+        has_fiche = True if self.has_fiche_var.get() == 1 else None
+        has_devis = True if self.has_devis_var.get() == 1 else None
+
         # Recherche de base avec filtres
-        produits = self.db.search_produits(terme, categorie, hauteur=hauteur, largeur=largeur)
+        produits = self.db.search_produits(terme, categorie, hauteur=hauteur, largeur=largeur,
+                                           has_fiche_technique=has_fiche,
+                                           has_devis_fournisseur=has_devis)
 
         # Filtre par sous-categorie niveau 1
         if subcategorie and subcategorie != "Toutes":
@@ -817,6 +885,8 @@ class MainWindow:
         self.hauteur_var.set("Toutes")
         self.largeur_var.set("Toutes")
         self.fournisseur_var.set("Tous")
+        self.has_fiche_var.set(0)
+        self.has_devis_var.set(0)
         self.update_subcategories()
         self.update_hauteurs()
         self.update_largeurs()

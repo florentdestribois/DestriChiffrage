@@ -30,9 +30,10 @@ def main():
     root.update_idletasks()
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    window_height = screen_height - 80  # Marge pour la barre des taches
-    root.geometry(f"1280x{window_height}")
-    root.minsize(1024, 700)
+    window_width = min(1700, screen_width - 50)
+    window_height = min(1700, screen_height - 80)
+    root.geometry(f"{window_width}x{window_height}")
+    root.minsize(1700, 1700)
 
     # Icone (si disponible)
     icon_path = get_resource_path('assets/icon.ico')
@@ -40,8 +41,9 @@ def main():
         root.iconbitmap(icon_path)
 
     # Centrer horizontalement, en haut de l'ecran
-    x = (screen_width - 1280) // 2
-    root.geometry(f"1280x{window_height}+{x}+10")
+    x = max(0, (screen_width - window_width) // 2)
+    y = max(0, (screen_height - window_height) // 2)
+    root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     # Appliquer le theme
     Theme.apply(root)

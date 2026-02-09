@@ -1,10 +1,17 @@
 # DestriChiffrage
 
-**Version 1.7.8**
+**Version 1.7.9**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Filtres documents produits (v1.7.9)
+- **Fix issue #27** : Filtres de recherche par presence de fiche technique et/ou devis fournisseur
+  - Checkbox "Avec fiche technique" pour filtrer les produits documentes
+  - Checkbox "Avec devis fournisseur" pour filtrer les produits avec tarification validee
+  - Disponible dans la fenetre principale et les dialogues de recherche produit
+  - Combinable avec tous les autres filtres existants (categorie, dimensions, fournisseur)
 
 ### Affichage hierarchique DPGF (v1.7.8)
 - **Fix issue #24** : Les niveaux 1 a 3 (Lot, Chapitre, Sous-chapitre) sont maintenant affiches dans la vue de chiffrage DPGF
