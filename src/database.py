@@ -1905,58 +1905,90 @@ class Database:
             writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
 
-            # Ecrire la structure (niveaux 1-3)
+            # Fusionner structure et articles pour export dans le bon ordre (fix issue #24)
+            items_list = []
             for s in structure:
-                if version_client:
-                    writer.writerow([s['code'], s['designation'], '', '', '', ''])
-                else:
-                    writer.writerow([s['code'], s['niveau'], s['designation']] + [''] * 19)
-
-            # Ecrire les articles
+                items_list.append({
+                    'type': 'structure',
+                    'code': s['code'] or '',
+                    'niveau': s['niveau'],
+                    'designation': s['designation'],
+                    'ordre': s['ordre']
+                })
             for a in articles:
-                produits_lies = self.get_produits_article(a['id'])
-                produits_str = ' | '.join([f"{p['produit_designation']} x{p['quantite']}" for p in produits_lies])
+                items_list.append({
+                    'type': 'article',
+                    'code': a['code'] or '',
+                    'data': a
+                })
 
-                if version_client:
-                    writer.writerow([
-                        a['code'],
-                        a['designation'],
-                        a['unite'],
-                        a['quantite'],
-                        f"{a['prix_unitaire_ht']:.2f}",
-                        f"{a['prix_total_ht']:.2f}"
-                    ])
+            # Trier par code pour respecter la hierarchie
+            def sort_key(item):
+                code = item['code'] or ''
+                code_normalized = code.replace('-', '.').replace('/', '.')
+                parts = code_normalized.split('.')
+                key_parts = []
+                for p in parts:
+                    try:
+                        key_parts.append((0, int(p), ''))
+                    except ValueError:
+                        key_parts.append((1, 0, p))
+                return (key_parts, item.get('niveau', 4), item['type'] == 'article')
+
+            items_list.sort(key=sort_key)
+
+            # Ecrire les items dans l'ordre
+            for item in items_list:
+                if item['type'] == 'structure':
+                    if version_client:
+                        writer.writerow([item['code'], item['designation'], '', '', '', ''])
+                    else:
+                        writer.writerow([item['code'], item['niveau'], item['designation']] + [''] * 19)
                 else:
-                    # Calculer cout produits (sans fournitures add.)
-                    fournitures_add = a.get('fournitures_additionnelles') or 0
-                    cout_produits = a['cout_materiaux'] - fournitures_add
-                    prix_manuel = a.get('prix_manuel')
-                    prix_manuel_str = f"{prix_manuel:.2f}" if prix_manuel is not None else ''
+                    a = item['data']
+                    produits_lies = self.get_produits_article(a['id'])
+                    produits_str = ' | '.join([f"{p['produit_designation']} x{p['quantite']}" for p in produits_lies])
 
-                    writer.writerow([
-                        a['code'],
-                        a['niveau'],
-                        a['designation'],
-                        a['categorie'] or '',
-                        a['largeur_mm'] or '',
-                        a['hauteur_mm'] or '',
-                        a['caracteristiques'] or '',
-                        a['unite'],
-                        a['quantite'],
-                        a['localisation'] or '',
-                        a['temps_conception'],
-                        a['temps_fabrication'],
-                        a['temps_pose'],
-                        f"{cout_produits:.2f}",
-                        f"{fournitures_add:.2f}",
-                        f"{a['cout_mo_total']:.2f}",
-                        f"{a['cout_revient']:.2f}",
-                        a['marge_pct'],
-                        prix_manuel_str,
-                        f"{a['prix_unitaire_ht']:.2f}",
-                        f"{a['prix_total_ht']:.2f}",
-                        produits_str
-                    ])
+                    if version_client:
+                        writer.writerow([
+                            a['code'],
+                            a['designation'],
+                            a['unite'],
+                            a['quantite'],
+                            f"{a['prix_unitaire_ht']:.2f}",
+                            f"{a['prix_total_ht']:.2f}"
+                        ])
+                    else:
+                        # Calculer cout produits (sans fournitures add.)
+                        fournitures_add = a.get('fournitures_additionnelles') or 0
+                        cout_produits = a['cout_materiaux'] - fournitures_add
+                        prix_manuel = a.get('prix_manuel')
+                        prix_manuel_str = f"{prix_manuel:.2f}" if prix_manuel is not None else ''
+
+                        writer.writerow([
+                            a['code'],
+                            a['niveau'],
+                            a['designation'],
+                            a['categorie'] or '',
+                            a['largeur_mm'] or '',
+                            a['hauteur_mm'] or '',
+                            a['caracteristiques'] or '',
+                            a['unite'],
+                            a['quantite'],
+                            a['localisation'] or '',
+                            a['temps_conception'],
+                            a['temps_fabrication'],
+                            a['temps_pose'],
+                            f"{cout_produits:.2f}",
+                            f"{fournitures_add:.2f}",
+                            f"{a['cout_mo_total']:.2f}",
+                            f"{a['cout_revient']:.2f}",
+                            a['marge_pct'],
+                            prix_manuel_str,
+                            f"{a['prix_unitaire_ht']:.2f}",
+                            f"{a['prix_total_ht']:.2f}",
+                            produits_str
+                        ])
 
         return len(articles)
 

@@ -1,10 +1,25 @@
 # DestriChiffrage
 
-**Version 1.7.6**
+**Version 1.7.8**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Affichage hierarchique DPGF (v1.7.8)
+- **Fix issue #24** : Les niveaux 1 a 3 (Lot, Chapitre, Sous-chapitre) sont maintenant affiches dans la vue de chiffrage DPGF
+  - Structure hierarchique complete visible avec indentation visuelle
+  - Distinction visuelle : fond colore et police en gras pour les titres
+  - Les elements de structure ne sont pas selectionnables (reserve aux articles)
+  - Export CSV respecte l'ordre hierarchique (structure et articles intercales)
+  - Meilleure lisibilite et navigation dans les articles
+
+### Verification automatique des mises a jour (v1.7.7)
+- **Fix issue #26** : Verification automatique des mises a jour au demarrage
+  - Verification en arriere-plan apres 3 secondes (non bloquante)
+  - Notification uniquement si une mise a jour est disponible
+  - Gestion silencieuse des erreurs reseau (pas de popup d'erreur)
+  - L'utilisateur n'est pas derange si tout est a jour
 
 ### Chiffrage DPGF ameliore (v1.7.6)
 - **Fix issue #25** : Amelioration de l'ergonomie du chiffrage DPGF

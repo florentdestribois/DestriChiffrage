@@ -126,6 +126,19 @@ class DPGFChiffrageView:
         self.articles_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
+        # Configuration des tags pour les niveaux hierarchiques
+        self.articles_tree.tag_configure('niveau1',
+                                         background='#EDE6DC',
+                                         font=('Roboto Medium', 11, 'bold'))
+        self.articles_tree.tag_configure('niveau2',
+                                         background='#F5F2EE',
+                                         font=('Roboto Medium', 11))
+        self.articles_tree.tag_configure('niveau3',
+                                         background='#FAF9F7',
+                                         font=('Roboto', 11))
+        self.articles_tree.tag_configure('article',
+                                         font=('Roboto', 11))
+
         # Selection
         self.articles_tree.bind('<<TreeviewSelect>>', self._on_article_select)
         self.articles_tree.bind('<Delete>', lambda e: self._delete_article())
@@ -649,10 +662,12 @@ class DPGFChiffrageView:
         self.prix_manuel_entry.bind('<Return>', lambda e: self._update_prix_manuel())
 
     def _load_articles(self):
-        """Charge les articles du chantier
+        """Charge les articles du chantier avec la structure hierarchique
 
         Note: Le flag _is_loading empeche les evenements de selection de
         declencher l'affichage du recapitulatif pendant le rechargement (fix issue #23)
+
+        Fix issue #24: Affiche maintenant les niveaux 1-3 (structure) en plus des articles (niveau 4)
         """
         # Activer le flag pour bloquer les evenements de selection
         self._is_loading = True
@@ -660,28 +675,103 @@ class DPGFChiffrageView:
         # Sauvegarder l'article actuellement selectionne
         selected_article_id = self.current_article_id
 
+        # Recuperer la structure (niveaux 1-3) et les articles (niveau 4)
+        structure = self.db.get_structure_dpgf(self.chantier_id)
         articles = self.db.get_articles_dpgf(self.chantier_id)
 
+        # Fusionner structure et articles dans une liste unifiee
+        # Structure: type='structure', niveau=1-3
+        # Articles: type='article', niveau=4
+        items_list = []
+
+        for s in structure:
+            items_list.append({
+                'type': 'structure',
+                'id': f"S{s['id']}",  # Prefixe S pour structure
+                'code': s['code'] or '',
+                'niveau': s['niveau'],
+                'designation': s['designation'],
+                'ordre': s['ordre']
+            })
+
+        for a in articles:
+            items_list.append({
+                'type': 'article',
+                'id': a['id'],
+                'code': a['code'] or '',
+                'niveau': 4,
+                'designation': a['designation'],
+                'quantite': a['quantite'],
+                'cout_materiaux': a['cout_materiaux'],
+                'cout_mo_total': a['cout_mo_total'],
+                'prix_unitaire_ht': a['prix_unitaire_ht'],
+                'prix_total_ht': a['prix_total_ht'],
+                'ordre': 0  # Les articles n'ont pas d'ordre explicite
+            })
+
+        # Trier par code pour respecter la hierarchie du DPGF
+        def sort_key(item):
+            # Extraire les parties numeriques du code pour tri naturel
+            code = item['code'] or ''
+            # Remplacer les separateurs par des points puis splitter
+            code_normalized = code.replace('-', '.').replace('/', '.')
+            parts = code_normalized.split('.')
+            # Convertir en tuples (numero, lettre) pour tri correct
+            key_parts = []
+            for p in parts:
+                try:
+                    key_parts.append((0, int(p), ''))
+                except ValueError:
+                    # Si pas un nombre, trier alphabetiquement
+                    key_parts.append((1, 0, p))
+            return (key_parts, item['niveau'], item['type'] == 'article')
+
+        items_list.sort(key=sort_key)
+
+        # Effacer les anciens items
         for item in self.articles_tree.get_children():
             self.articles_tree.delete(item)
 
         total = 0
         selected_item = None
-        for a in articles:
-            item_id = self.articles_tree.insert('', tk.END, values=(
-                a['id'],
-                a['code'] or '-',
-                a['designation'],
-                a['quantite'],
-                f"{a['cout_materiaux']:.2f}",
-                f"{a['cout_mo_total']:.2f}",
-                f"{a['prix_unitaire_ht']:.2f}",
-                f"{a['prix_total_ht']:.2f}",
-            ))
-            total += a['prix_total_ht']
-            # Memoriser l'item correspondant a l'article selectionne
-            if a['id'] == selected_article_id:
-                selected_item = item_id
+
+        for item in items_list:
+            if item['type'] == 'structure':
+                # Element de structure (niveau 1-3)
+                niveau = item['niveau']
+                # Indentation visuelle selon le niveau
+                indent = "  " * (niveau - 1)
+                designation = f"{indent}{item['designation']}"
+
+                tag = f"niveau{niveau}"
+                item_id = self.articles_tree.insert('', tk.END, values=(
+                    '',  # Pas d'ID affiche pour la structure
+                    item['code'] or '',
+                    designation,
+                    '',  # Pas de quantite
+                    '',  # Pas de cout materiaux
+                    '',  # Pas de cout MO
+                    '',  # Pas de prix unitaire
+                    '',  # Pas de prix total
+                ), tags=(tag, 'structure'))
+
+            else:
+                # Article chiffrable (niveau 4)
+                item_id = self.articles_tree.insert('', tk.END, values=(
+                    item['id'],
+                    item['code'] or '-',
+                    item['designation'],
+                    item['quantite'],
+                    f"{item['cout_materiaux']:.2f}",
+                    f"{item['cout_mo_total']:.2f}",
+                    f"{item['prix_unitaire_ht']:.2f}",
+                    f"{item['prix_total_ht']:.2f}",
+                ), tags=('article',))
+                total += item['prix_total_ht']
+
+                # Memoriser l'item correspondant a l'article selectionne
+                if item['id'] == selected_article_id:
+                    selected_item = item_id
 
         self.total_label.config(text=f"Total: {total:.2f} EUR HT")
 
@@ -716,6 +806,8 @@ class DPGFChiffrageView:
         Note: On verifie que le clic provient bien du widget treeview lui-meme
         pour eviter que le recapitulatif ne s'affiche involontairement lors de
         l'edition d'un article (fix issue #23)
+
+        Les elements de structure (niveaux 1-3) sont ignores pour la selection (fix issue #24)
         """
         # Ignorer pendant le rechargement
         if self._is_loading:
@@ -731,9 +823,20 @@ class DPGFChiffrageView:
             self.articles_tree.selection_remove(self.articles_tree.selection())
             self.current_article_id = None
             self._show_recap()
+        else:
+            # Verifier si c'est un element de structure
+            item_data = self.articles_tree.item(item)
+            tags = item_data.get('tags', ())
+            if 'structure' in tags:
+                # Empecher la selection des elements de structure
+                self.articles_tree.selection_remove(item)
 
     def _on_article_select(self, event=None):
-        """Selection d'un article"""
+        """Selection d'un article
+
+        Note: Les elements de structure (niveaux 1-3) ne sont pas selectionnables
+        pour le chiffrage. Seuls les articles (niveau 4) affichent le detail. (fix issue #24)
+        """
         # Ignorer les evenements pendant le rechargement (fix issue #23)
         if self._is_loading:
             return
@@ -745,7 +848,20 @@ class DPGFChiffrageView:
             return
 
         item = self.articles_tree.item(selection[0])
+
+        # Verifier si c'est un element de structure (niveaux 1-3)
+        tags = item.get('tags', ())
+        if 'structure' in tags:
+            # Deselectionner l'element de structure
+            self.articles_tree.selection_remove(selection[0])
+            return
+
         article_id = item['values'][0]
+
+        # Verifier que l'ID est valide (pas vide)
+        if not article_id:
+            return
+
         self.current_article_id = article_id
 
         # Afficher le detail (cacher le recap)
@@ -1039,12 +1155,22 @@ class DPGFChiffrageView:
         self.no_selection_label.pack(expand=True)
 
     def _show_article_context_menu(self, event):
-        """Affiche le menu contextuel pour un article"""
+        """Affiche le menu contextuel pour un article
+
+        Note: Le menu n'est pas affiche pour les elements de structure (fix issue #24)
+        """
         # Selectionner l'item sous le curseur
         item = self.articles_tree.identify_row(event.y)
         if item:
+            # Verifier si c'est un element de structure
+            item_data = self.articles_tree.item(item)
+            tags = item_data.get('tags', ())
+            if 'structure' in tags:
+                # Pas de menu contextuel pour les elements de structure
+                return
+
             self.articles_tree.selection_set(item)
-            article_id = self.articles_tree.item(item)['values'][0]
+            article_id = item_data['values'][0]
 
             # Verifier si l'article a des produits lies avec fiche/devis
             produits = self.db.get_produits_article(article_id)
