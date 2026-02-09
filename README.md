@@ -1,10 +1,16 @@
 # DestriChiffrage
 
-**Version 1.7.9**
+**Version 1.7.10**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Correction mise a jour automatique (v1.7.10)
+- **Fix** : Correction du systeme de verification des mises a jour
+  - Ajout du module `requests` et ses dependances dans l'executable
+  - La verification automatique au demarrage fonctionne maintenant
+  - La verification manuelle (menu Aide) fonctionne egalement
 
 ### Filtres documents produits (v1.7.9)
 - **Fix issue #27** : Filtres de recherche par presence de fiche technique et/ou devis fournisseur
