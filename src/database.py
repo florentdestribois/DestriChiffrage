@@ -230,6 +230,16 @@ class Database:
             )
         ''')
 
+        # Migration v1.7.6: ajouter colonnes prix_manuel et fournitures_additionnelles dans prix_marche
+        try:
+            cursor.execute("ALTER TABLE prix_marche ADD COLUMN prix_manuel REAL DEFAULT NULL")
+        except:
+            pass
+        try:
+            cursor.execute("ALTER TABLE prix_marche ADD COLUMN fournitures_additionnelles REAL DEFAULT 0")
+        except:
+            pass
+
         # Table de liaison article DPGF <-> produits (multi-produits)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS article_produits (
@@ -1546,8 +1556,9 @@ class Database:
                 chantier_id, code, niveau, designation, description, presentation, categorie,
                 largeur_mm, hauteur_mm, caracteristiques, unite,
                 quantite, localisation, notes, marge_pct, taux_tva,
-                temps_conception, temps_fabrication, temps_pose
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                temps_conception, temps_fabrication, temps_pose,
+                prix_manuel, fournitures_additionnelles
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             chantier_id,
             data.get('code', ''),
@@ -1567,7 +1578,9 @@ class Database:
             data.get('taux_tva', 20),
             data.get('temps_conception', 0),
             data.get('temps_fabrication', 0),
-            data.get('temps_pose', 0)
+            data.get('temps_pose', 0),
+            data.get('prix_manuel'),
+            data.get('fournitures_additionnelles', 0)
         ))
         self.conn.commit()
         article_id = cursor.lastrowid
@@ -1584,7 +1597,8 @@ class Database:
                 largeur_mm = ?, hauteur_mm = ?, caracteristiques = ?,
                 unite = ?, quantite = ?, localisation = ?, notes = ?,
                 temps_conception = ?, temps_fabrication = ?, temps_pose = ?,
-                marge_pct = ?, taux_tva = ?
+                marge_pct = ?, taux_tva = ?,
+                prix_manuel = ?, fournitures_additionnelles = ?
             WHERE id = ?
         ''', (
             data.get('code', ''),
@@ -1604,6 +1618,8 @@ class Database:
             data.get('temps_pose', 0),
             data.get('marge_pct', 25),
             data.get('taux_tva', 20),
+            data.get('prix_manuel'),
+            data.get('fournitures_additionnelles', 0),
             article_id
         ))
         self.conn.commit()
@@ -1633,6 +1649,9 @@ class Database:
         - Cout entreprise (taux_cout_*) : cout reel pour l'entreprise
         - Prix de vente (taux_vente_*) : prix facture au client
         - Marge MO : calculee automatiquement = (vente - cout) / cout * 100
+
+        Si prix_manuel est renseigne, il override le calcul automatique du prix_unitaire_ht
+        Les fournitures_additionnelles s'ajoutent au cout des materiaux
         """
         article = self.get_article_dpgf(article_id)
         if not article:
@@ -1647,7 +1666,11 @@ class Database:
             FROM article_produits WHERE prix_marche_id = ?
         ''', (article_id,))
         result = cursor.fetchone()
-        cout_materiaux = result['total'] if result and result['total'] else 0
+        cout_produits = result['total'] if result and result['total'] else 0
+
+        # Ajouter les fournitures additionnelles au cout materiaux
+        fournitures_add = article.get('fournitures_additionnelles') or 0
+        cout_materiaux = cout_produits + fournitures_add
 
         # Calculer les COUTS MO (cout entreprise)
         cout_mo_conception = article['temps_conception'] * taux['conception']['cout']
@@ -1667,11 +1690,17 @@ class Database:
         # Cout de revient = materiaux + cout MO entreprise
         cout_revient = cout_materiaux + cout_mo_total
 
-        # Prix de vente = materiaux + prix vente MO (pas de marge supplementaire sur materiaux)
-        # On applique la marge article sur les materiaux uniquement
-        marge_materiaux = article['marge_pct'] / 100
-        prix_materiaux_vente = cout_materiaux * (1 + marge_materiaux)
-        prix_unitaire_ht = prix_materiaux_vente + vente_mo_total
+        # Prix de vente : utiliser prix_manuel si renseigne, sinon calcul automatique
+        prix_manuel = article.get('prix_manuel')
+        if prix_manuel is not None:
+            # Prix manuel override le calcul automatique
+            prix_unitaire_ht = prix_manuel
+        else:
+            # Calcul automatique : materiaux avec marge + vente MO
+            marge_materiaux = article['marge_pct'] / 100
+            prix_materiaux_vente = cout_materiaux * (1 + marge_materiaux)
+            prix_unitaire_ht = prix_materiaux_vente + vente_mo_total
+
         prix_total_ht = prix_unitaire_ht * article['quantite']
 
         # Mettre a jour l'article
@@ -1870,8 +1899,8 @@ class Database:
                 headers = ['CODE', 'NIVEAU', 'DESIGNATION', 'CATEGORIE', 'LARGEUR_MM', 'HAUTEUR_MM',
                           'CARACTERISTIQUES', 'UNITE', 'QUANTITE', 'LOCALISATION',
                           'TEMPS_CONCEPTION', 'TEMPS_FABRICATION', 'TEMPS_POSE',
-                          'COUT_MATERIAUX', 'COUT_MO', 'COUT_REVIENT', 'MARGE_PCT',
-                          'PRIX_UNITAIRE_HT', 'PRIX_TOTAL_HT', 'PRODUITS_LIES']
+                          'COUT_MATERIAUX', 'FOURNITURES_ADD', 'COUT_MO', 'COUT_REVIENT', 'MARGE_PCT',
+                          'PRIX_MANUEL', 'PRIX_UNITAIRE_HT', 'PRIX_TOTAL_HT', 'PRODUITS_LIES']
 
             writer = csv.writer(f, delimiter=';')
             writer.writerow(headers)
@@ -1881,7 +1910,7 @@ class Database:
                 if version_client:
                     writer.writerow([s['code'], s['designation'], '', '', '', ''])
                 else:
-                    writer.writerow([s['code'], s['niveau'], s['designation']] + [''] * 17)
+                    writer.writerow([s['code'], s['niveau'], s['designation']] + [''] * 19)
 
             # Ecrire les articles
             for a in articles:
@@ -1898,6 +1927,12 @@ class Database:
                         f"{a['prix_total_ht']:.2f}"
                     ])
                 else:
+                    # Calculer cout produits (sans fournitures add.)
+                    fournitures_add = a.get('fournitures_additionnelles') or 0
+                    cout_produits = a['cout_materiaux'] - fournitures_add
+                    prix_manuel = a.get('prix_manuel')
+                    prix_manuel_str = f"{prix_manuel:.2f}" if prix_manuel is not None else ''
+
                     writer.writerow([
                         a['code'],
                         a['niveau'],
@@ -1912,10 +1947,12 @@ class Database:
                         a['temps_conception'],
                         a['temps_fabrication'],
                         a['temps_pose'],
-                        f"{a['cout_materiaux']:.2f}",
+                        f"{cout_produits:.2f}",
+                        f"{fournitures_add:.2f}",
                         f"{a['cout_mo_total']:.2f}",
                         f"{a['cout_revient']:.2f}",
                         a['marge_pct'],
+                        prix_manuel_str,
                         f"{a['prix_unitaire_ht']:.2f}",
                         f"{a['prix_total_ht']:.2f}",
                         produits_str

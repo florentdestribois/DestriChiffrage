@@ -1,10 +1,24 @@
 # DestriChiffrage
 
-**Version 1.7.5**
+**Version 1.7.6**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Chiffrage DPGF ameliore (v1.7.6)
+- **Fix issue #25** : Amelioration de l'ergonomie du chiffrage DPGF
+  - **Prix manuel** : Possibilite de saisir un prix HT manuellement qui remplace le calcul automatique
+    - Checkbox "Prix manuel (override)" pour activer/desactiver
+    - Le prix calcule automatiquement est initialise comme valeur par defaut
+    - Indication visuelle "(manuel)" dans le resume des couts
+  - **Fournitures additionnelles** : Nouveau champ pour ajouter des couts de fournitures hors catalogue
+    - S'additionne au cout des produits lies
+    - Spinbox avec increment de 10 EUR pour un ajustement rapide
+  - **Spinbox pour les temps MO** : Les champs Conception, Fabrication et Pose utilisent maintenant des Spinbox
+    - Increment de 1h pour un ajustement rapide
+    - Boutons +/- integres pour faciliter l'ajustement
+  - **Export ameliore** : Nouvelles colonnes FOURNITURES_ADD et PRIX_MANUEL dans l'export CSV interne
 
 ### Export PDF avec nommage personnalise (v1.7.5)
 - **Fix issue #22** : Options de nommage des fichiers PDF lors de l'export DPGF

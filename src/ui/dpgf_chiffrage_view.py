@@ -483,6 +483,33 @@ class DPGFChiffrageView:
 
         ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=8)
 
+        # Section Fournitures additionnelles
+        fournitures_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
+        fournitures_frame.pack(fill=tk.X, pady=(8, 0))
+
+        tk.Label(fournitures_frame, text="Fournitures additionnelles",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text']).pack(side=tk.LEFT)
+
+        tk.Label(fournitures_frame, text="EUR",
+                font=Theme.FONTS['tiny'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.RIGHT)
+
+        self.fournitures_var = tk.StringVar(value="0")
+        self.fournitures_entry = tk.Spinbox(fournitures_frame, from_=0, to=99999, increment=10,
+                                           textvariable=self.fournitures_var,
+                                           width=10, font=Theme.FONTS['body'],
+                                           bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                           bd=1, relief='solid', justify='right',
+                                           command=self._update_fournitures)
+        self.fournitures_entry.pack(side=tk.RIGHT, padx=(8, 4))
+        self.fournitures_entry.bind('<FocusOut>', lambda e: self._update_fournitures())
+        self.fournitures_entry.bind('<Return>', lambda e: self._update_fournitures())
+
+        ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=12)
+
         # Section Main d'oeuvre
         tk.Label(self.detail_content, text="MAIN D'OEUVRE (heures)",
                 font=Theme.FONTS['small_bold'],
@@ -526,14 +553,18 @@ class DPGFChiffrageView:
                     bg=Theme.COLORS['bg_alt'],
                     fg=marge_color).pack(anchor='w')
 
-            entry = tk.Entry(frame, width=8, font=Theme.FONTS['body'],
-                           bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
-                           bd=1, relief='solid', justify='center')
-            entry.insert(0, "0")
-            entry.pack(pady=(2, 0))
-            entry.bind('<FocusOut>', lambda e: self._update_mo())
-            entry.bind('<Return>', lambda e: self._update_mo())
-            self.mo_entries[key] = entry
+            # Utiliser Spinbox avec increment de 0.25h (15 min)
+            spinbox = tk.Spinbox(frame, from_=0, to=999, increment=1,
+                                width=6, font=Theme.FONTS['body'],
+                                bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                bd=1, relief='solid', justify='center',
+                                command=self._update_mo)
+            spinbox.delete(0, tk.END)
+            spinbox.insert(0, "0")
+            spinbox.pack(pady=(2, 0))
+            spinbox.bind('<FocusOut>', lambda e: self._update_mo())
+            spinbox.bind('<Return>', lambda e: self._update_mo())
+            self.mo_entries[key] = spinbox
 
         tk.Label(mo_frame, text="h", font=Theme.FONTS['tiny'],
                 bg=Theme.COLORS['bg_alt'],
@@ -571,9 +602,9 @@ class DPGFChiffrageView:
         couts_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
         couts_frame.pack(fill=tk.X)
 
-        for key, label in [('materiaux', 'Materiaux'), ('mo', 'Main d\'oeuvre'),
-                          ('revient', 'Cout revient'), ('prix_unit', 'Prix unitaire HT'),
-                          ('prix_total', 'Prix total HT')]:
+        for key, label in [('materiaux', 'Materiaux'), ('fournitures', 'Fournitures add.'),
+                          ('mo', 'Main d\'oeuvre'), ('revient', 'Cout revient'),
+                          ('prix_unit', 'Prix unitaire HT'), ('prix_total', 'Prix total HT')]:
             row = tk.Frame(couts_frame, bg=Theme.COLORS['bg_alt'])
             row.pack(fill=tk.X, pady=2)
             tk.Label(row, text=label, font=Theme.FONTS['body'],
@@ -584,6 +615,38 @@ class DPGFChiffrageView:
                                              bg=Theme.COLORS['bg_alt'],
                                              fg=Theme.COLORS['accent'] if key == 'prix_total' else Theme.COLORS['text'])
             self.couts_labels[key].pack(side=tk.RIGHT)
+
+        # Section Prix manuel
+        ttk.Separator(self.detail_content, orient='horizontal').pack(fill=tk.X, pady=8)
+
+        prix_manuel_frame = tk.Frame(self.detail_content, bg=Theme.COLORS['bg_alt'])
+        prix_manuel_frame.pack(fill=tk.X, pady=(0, 8))
+
+        self.prix_manuel_var = tk.BooleanVar(value=False)
+        self.prix_manuel_check = tk.Checkbutton(prix_manuel_frame, text="Prix manuel (override)",
+                                                variable=self.prix_manuel_var,
+                                                font=Theme.FONTS['small_bold'],
+                                                bg=Theme.COLORS['bg_alt'],
+                                                fg=Theme.COLORS['secondary'],
+                                                activebackground=Theme.COLORS['bg_alt'],
+                                                command=self._toggle_prix_manuel)
+        self.prix_manuel_check.pack(side=tk.LEFT)
+
+        tk.Label(prix_manuel_frame, text="EUR HT",
+                font=Theme.FONTS['tiny'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.RIGHT)
+
+        self.prix_manuel_entry_var = tk.StringVar(value="0")
+        self.prix_manuel_entry = tk.Entry(prix_manuel_frame, width=12,
+                                         textvariable=self.prix_manuel_entry_var,
+                                         font=Theme.FONTS['body'],
+                                         bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'],
+                                         bd=1, relief='solid', justify='right',
+                                         state='disabled')
+        self.prix_manuel_entry.pack(side=tk.RIGHT, padx=(8, 4))
+        self.prix_manuel_entry.bind('<FocusOut>', lambda e: self._update_prix_manuel())
+        self.prix_manuel_entry.bind('<Return>', lambda e: self._update_prix_manuel())
 
     def _load_articles(self):
         """Charge les articles du chantier
@@ -719,6 +782,21 @@ class DPGFChiffrageView:
         taux_tva = article.get('taux_tva', 20) or 20
         self.tva_var.set(f"{taux_tva}%")
 
+        # Fournitures additionnelles
+        fournitures_add = article.get('fournitures_additionnelles') or 0
+        self.fournitures_var.set(str(fournitures_add))
+
+        # Prix manuel
+        prix_manuel = article.get('prix_manuel')
+        if prix_manuel is not None:
+            self.prix_manuel_var.set(True)
+            self.prix_manuel_entry_var.set(str(prix_manuel))
+            self.prix_manuel_entry.config(state='normal')
+        else:
+            self.prix_manuel_var.set(False)
+            self.prix_manuel_entry_var.set("0")
+            self.prix_manuel_entry.config(state='disabled')
+
         # Produits lies
         self._load_produits_lies()
 
@@ -752,11 +830,157 @@ class DPGFChiffrageView:
         if not article:
             return
 
-        self.couts_labels['materiaux'].config(text=f"{article['cout_materiaux']:.2f} EUR")
+        # Calculer le cout des produits lies (sans fournitures add.)
+        produits = self.db.get_produits_article(self.current_article_id)
+        cout_produits = sum(p['quantite'] * p['prix_unitaire'] for p in produits)
+        fournitures_add = article.get('fournitures_additionnelles') or 0
+
+        self.couts_labels['materiaux'].config(text=f"{cout_produits:.2f} EUR")
+        self.couts_labels['fournitures'].config(text=f"{fournitures_add:.2f} EUR")
         self.couts_labels['mo'].config(text=f"{article['cout_mo_total']:.2f} EUR")
         self.couts_labels['revient'].config(text=f"{article['cout_revient']:.2f} EUR")
-        self.couts_labels['prix_unit'].config(text=f"{article['prix_unitaire_ht']:.2f} EUR")
+
+        # Afficher si prix manuel ou calcule
+        prix_manuel = article.get('prix_manuel')
+        if prix_manuel is not None:
+            self.couts_labels['prix_unit'].config(
+                text=f"{article['prix_unitaire_ht']:.2f} EUR (manuel)",
+                fg=Theme.COLORS['warning'])
+        else:
+            self.couts_labels['prix_unit'].config(
+                text=f"{article['prix_unitaire_ht']:.2f} EUR",
+                fg=Theme.COLORS['text'])
+
         self.couts_labels['prix_total'].config(text=f"{article['prix_total_ht']:.2f} EUR")
+
+    def _update_fournitures(self):
+        """Met a jour les fournitures additionnelles"""
+        if not self.current_article_id:
+            return
+
+        try:
+            fournitures = float(self.fournitures_var.get().replace(',', '.') or 0)
+        except ValueError:
+            return
+
+        article = self.db.get_article_dpgf(self.current_article_id)
+        if not article:
+            return
+
+        data = {
+            'code': article['code'],
+            'designation': article['designation'],
+            'description': article.get('description', ''),
+            'presentation': article.get('presentation', ''),
+            'categorie': article['categorie'],
+            'largeur_mm': article['largeur_mm'],
+            'hauteur_mm': article['hauteur_mm'],
+            'caracteristiques': article['caracteristiques'],
+            'unite': article['unite'],
+            'quantite': article['quantite'],
+            'localisation': article['localisation'],
+            'notes': article['notes'],
+            'temps_conception': article['temps_conception'],
+            'temps_fabrication': article['temps_fabrication'],
+            'temps_pose': article['temps_pose'],
+            'marge_pct': article['marge_pct'],
+            'taux_tva': article.get('taux_tva', 20),
+            'prix_manuel': article.get('prix_manuel'),
+            'fournitures_additionnelles': fournitures,
+        }
+
+        self.db.update_article_dpgf(self.current_article_id, data)
+        self._update_couts_display()
+        self._load_articles()
+
+    def _toggle_prix_manuel(self):
+        """Active/desactive le mode prix manuel"""
+        if self.prix_manuel_var.get():
+            self.prix_manuel_entry.config(state='normal')
+            # Initialiser avec le prix calcule actuel
+            if self.current_article_id:
+                article = self.db.get_article_dpgf(self.current_article_id)
+                if article:
+                    self.prix_manuel_entry_var.set(f"{article['prix_unitaire_ht']:.2f}")
+        else:
+            self.prix_manuel_entry.config(state='disabled')
+            # Supprimer le prix manuel
+            self._clear_prix_manuel()
+
+    def _clear_prix_manuel(self):
+        """Supprime le prix manuel et revient au calcul automatique"""
+        if not self.current_article_id:
+            return
+
+        article = self.db.get_article_dpgf(self.current_article_id)
+        if not article:
+            return
+
+        data = {
+            'code': article['code'],
+            'designation': article['designation'],
+            'description': article.get('description', ''),
+            'presentation': article.get('presentation', ''),
+            'categorie': article['categorie'],
+            'largeur_mm': article['largeur_mm'],
+            'hauteur_mm': article['hauteur_mm'],
+            'caracteristiques': article['caracteristiques'],
+            'unite': article['unite'],
+            'quantite': article['quantite'],
+            'localisation': article['localisation'],
+            'notes': article['notes'],
+            'temps_conception': article['temps_conception'],
+            'temps_fabrication': article['temps_fabrication'],
+            'temps_pose': article['temps_pose'],
+            'marge_pct': article['marge_pct'],
+            'taux_tva': article.get('taux_tva', 20),
+            'prix_manuel': None,  # Supprimer le prix manuel
+            'fournitures_additionnelles': article.get('fournitures_additionnelles', 0),
+        }
+
+        self.db.update_article_dpgf(self.current_article_id, data)
+        self._update_couts_display()
+        self._load_articles()
+
+    def _update_prix_manuel(self):
+        """Met a jour le prix manuel"""
+        if not self.current_article_id or not self.prix_manuel_var.get():
+            return
+
+        try:
+            prix = float(self.prix_manuel_entry_var.get().replace(',', '.') or 0)
+        except ValueError:
+            return
+
+        article = self.db.get_article_dpgf(self.current_article_id)
+        if not article:
+            return
+
+        data = {
+            'code': article['code'],
+            'designation': article['designation'],
+            'description': article.get('description', ''),
+            'presentation': article.get('presentation', ''),
+            'categorie': article['categorie'],
+            'largeur_mm': article['largeur_mm'],
+            'hauteur_mm': article['hauteur_mm'],
+            'caracteristiques': article['caracteristiques'],
+            'unite': article['unite'],
+            'quantite': article['quantite'],
+            'localisation': article['localisation'],
+            'notes': article['notes'],
+            'temps_conception': article['temps_conception'],
+            'temps_fabrication': article['temps_fabrication'],
+            'temps_pose': article['temps_pose'],
+            'marge_pct': article['marge_pct'],
+            'taux_tva': article.get('taux_tva', 20),
+            'prix_manuel': prix,
+            'fournitures_additionnelles': article.get('fournitures_additionnelles', 0),
+        }
+
+        self.db.update_article_dpgf(self.current_article_id, data)
+        self._update_couts_display()
+        self._load_articles()
 
     def _add_article(self):
         """Ajoute un nouvel article"""
@@ -979,6 +1203,7 @@ class DPGFChiffrageView:
             'code': article['code'],
             'designation': article['designation'],
             'description': article.get('description', ''),
+            'presentation': article.get('presentation', ''),
             'categorie': article['categorie'],
             'largeur_mm': article['largeur_mm'],
             'hauteur_mm': article['hauteur_mm'],
@@ -992,6 +1217,8 @@ class DPGFChiffrageView:
             'temps_pose': temps_pose,
             'marge_pct': article['marge_pct'],
             'taux_tva': article.get('taux_tva', 20),
+            'prix_manuel': article.get('prix_manuel'),
+            'fournitures_additionnelles': article.get('fournitures_additionnelles', 0),
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
@@ -1028,6 +1255,8 @@ class DPGFChiffrageView:
             'temps_pose': article['temps_pose'],
             'marge_pct': article['marge_pct'],
             'taux_tva': article.get('taux_tva', 20),
+            'prix_manuel': article.get('prix_manuel'),
+            'fournitures_additionnelles': article.get('fournitures_additionnelles', 0),
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
@@ -1056,6 +1285,7 @@ class DPGFChiffrageView:
             'code': article['code'],
             'designation': article['designation'],
             'description': article.get('description', ''),
+            'presentation': article.get('presentation', ''),
             'categorie': article['categorie'],
             'largeur_mm': article['largeur_mm'],
             'hauteur_mm': article['hauteur_mm'],
@@ -1069,6 +1299,8 @@ class DPGFChiffrageView:
             'temps_pose': article['temps_pose'],
             'marge_pct': article['marge_pct'],
             'taux_tva': taux_tva,
+            'prix_manuel': article.get('prix_manuel'),
+            'fournitures_additionnelles': article.get('fournitures_additionnelles', 0),
         }
 
         self.db.update_article_dpgf(self.current_article_id, data)
