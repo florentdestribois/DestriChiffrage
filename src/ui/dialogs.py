@@ -97,6 +97,7 @@ class ProductDialog:
             ('prix_achat', 'Prix Achat HT (EUR)', 'entry'),
             ('reference', 'Reference', 'entry'),
             ('fournisseur', 'Fournisseur', 'entry'),
+            ('marque', 'Marque', 'combobox'),
             ('chantier', 'Chantier/Projet', 'entry'),
             ('fiche_technique', 'Fiche technique (PDF)', 'file'),
             ('devis_fournisseur', 'Devis fournisseur (PDF)', 'file'),
@@ -139,6 +140,9 @@ class ProductDialog:
                         widget['values'] = self.db.get_sous_categories_3(cat, sous_cat, sous_cat_2)
                     else:
                         widget['values'] = []
+                elif field == 'marque':
+                    # Charger les marques existantes
+                    widget['values'] = self.db.get_marques_distinctes()
                 widget.set(self.data.get(field, ''))
                 widget.grid(row=i, column=1, sticky='w', padx=5, pady=8)
             elif widget_type == 'text':
@@ -1087,3 +1091,100 @@ class AboutDialog:
                            style='secondary', padx=28).pack(pady=(24, 0))
 
         dialog.wait_window()
+
+
+class ProgressDialog:
+    """Dialogue avec barre de progression pour les operations longues (optimise)"""
+
+    def __init__(self, parent, title="Operation en cours", message="Veuillez patienter..."):
+        import time
+        self.parent = parent
+        self.cancelled = False
+        self._last_update_time = 0
+        self._min_update_interval = 0.05  # Max 20 updates/sec
+
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title(title)
+        self.dialog.geometry("450x180")
+        self.dialog.minsize(420, 160)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        self.dialog.resizable(False, False)
+        self.dialog.configure(bg=Theme.COLORS['bg'])
+        self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
+
+        # Centrer
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - 450) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - 180) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+
+        # Contenu
+        main_frame = tk.Frame(self.dialog, bg=Theme.COLORS['bg'], padx=24, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Message
+        self.message_label = tk.Label(main_frame, text=message,
+                                      font=Theme.FONTS['body'],
+                                      bg=Theme.COLORS['bg'],
+                                      fg=Theme.COLORS['text'])
+        self.message_label.pack(pady=(0, 16))
+
+        # Barre de progression
+        self.progress_var = tk.DoubleVar(value=0)
+        self.progressbar = ttk.Progressbar(main_frame, variable=self.progress_var,
+                                           maximum=100, length=380, mode='determinate')
+        self.progressbar.pack(fill=tk.X, pady=(0, 8))
+
+        # Label de progression
+        self.progress_label = tk.Label(main_frame, text="0 / 0",
+                                       font=Theme.FONTS['small'],
+                                       bg=Theme.COLORS['bg'],
+                                       fg=Theme.COLORS['text_muted'])
+        self.progress_label.pack()
+
+        # Bouton annuler
+        self.cancel_btn = Theme.create_button(main_frame, "Annuler", command=self._on_cancel,
+                                              style='ghost', padx=20)
+        self.cancel_btn.pack(pady=(12, 0))
+
+        # Afficher immediatement
+        self.dialog.update()
+
+    def update_progress(self, current: int, total: int, message: str = None, force: bool = False):
+        """Met a jour la progression (limite a 20 updates/sec pour performance)"""
+        import time
+        now = time.time()
+
+        # Limiter les mises a jour visuelles
+        if not force and (now - self._last_update_time) < self._min_update_interval:
+            return
+
+        self._last_update_time = now
+
+        if total > 0:
+            percent = (current / total) * 100
+            self.progress_var.set(percent)
+            self.progress_label.config(text=f"{current:,} / {total:,}")
+        if message:
+            self.message_label.config(text=message)
+
+        # update_idletasks est plus leger que update
+        self.dialog.update_idletasks()
+
+    def set_message(self, message: str):
+        """Change le message affiche"""
+        self.message_label.config(text=message)
+        self.dialog.update_idletasks()
+
+    def _on_cancel(self):
+        """Gere l'annulation"""
+        self.cancelled = True
+
+    def close(self):
+        """Ferme le dialogue"""
+        self.dialog.destroy()
+
+    def is_cancelled(self):
+        """Retourne True si l'utilisateur a annule"""
+        return self.cancelled

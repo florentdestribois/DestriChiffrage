@@ -48,6 +48,7 @@ class ProductSearchDialog:
         self.subcategory_var = tk.StringVar(value="Toutes")
         self.subcategory2_var = tk.StringVar(value="Toutes")
         self.subcategory3_var = tk.StringVar(value="Toutes")
+        self.marque_var = tk.StringVar(value="Toutes")
         self.has_fiche_var = tk.IntVar(value=0)
         self.has_devis_var = tk.IntVar(value=0)
         self.quantity_var = tk.StringVar(value="1")
@@ -149,8 +150,22 @@ class ProductSearchDialog:
                                               width=14, state='readonly',
                                               font=Theme.FONTS['body'])
         self.subcategory3_combo['values'] = ['Toutes']
-        self.subcategory3_combo.pack(side=tk.LEFT, padx=(8, 0))
+        self.subcategory3_combo.pack(side=tk.LEFT, padx=(8, 16))
         self.subcategory3_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
+
+        # Filtre marque
+        tk.Label(search_frame2, text="Marque",
+                font=Theme.FONTS['small'],
+                bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
+
+        self.marque_combo = ttk.Combobox(search_frame2, textvariable=self.marque_var,
+                                         width=12, state='readonly',
+                                         font=Theme.FONTS['body'])
+        marques = ['Toutes'] + self.db.get_marques_distinctes()
+        self.marque_combo['values'] = marques
+        self.marque_combo.pack(side=tk.LEFT, padx=(8, 0))
+        self.marque_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
 
         # Filtres documents (fix issue #27)
         self.fiche_check = tk.Checkbutton(search_frame2, text="Avec fiche",
@@ -323,6 +338,7 @@ class ProductSearchDialog:
         sous_cat = self.subcategory_var.get()
         sous_cat2 = self.subcategory2_var.get()
         sous_cat3 = self.subcategory3_var.get()
+        marque = self.marque_var.get()
 
         # Filtres documents (fix issue #27)
         has_fiche = True if self.has_fiche_var.get() == 1 else None
@@ -334,7 +350,8 @@ class ProductSearchDialog:
             sous_categorie_2=sous_cat2,
             sous_categorie_3=sous_cat3,
             has_fiche_technique=has_fiche,
-            has_devis_fournisseur=has_devis
+            has_devis_fournisseur=has_devis,
+            marque=marque
         )
 
         # Vider le tableau
@@ -522,6 +539,7 @@ class MultiProductSearchDialog:
         # Variables
         self.search_var = tk.StringVar()
         self.category_var = tk.StringVar(value="Toutes")
+        self.marque_var = tk.StringVar(value="Toutes")
         self.has_fiche_var = tk.IntVar(value=0)
         self.has_devis_var = tk.IntVar(value=0)
 
@@ -575,6 +593,15 @@ class MultiProductSearchDialog:
         self.category_combo['values'] = cats
         self.category_combo.pack(side=tk.LEFT, padx=(8, 0))
         self.category_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
+
+        # Filtre marque
+        self.marque_combo = ttk.Combobox(search_frame, textvariable=self.marque_var,
+                                         width=12, state='readonly',
+                                         font=Theme.FONTS['body'])
+        marques = ['Toutes'] + self.db.get_marques_distinctes()
+        self.marque_combo['values'] = marques
+        self.marque_combo.pack(side=tk.LEFT, padx=(8, 0))
+        self.marque_combo.bind('<<ComboboxSelected>>', lambda e: self._on_search())
 
         # Filtres documents (fix issue #27)
         self.fiche_check = tk.Checkbutton(search_frame, text="Avec fiche",
@@ -705,6 +732,7 @@ class MultiProductSearchDialog:
         """Recherche dans le catalogue"""
         terme = self.search_var.get()
         categorie = self.category_var.get()
+        marque = self.marque_var.get()
 
         # Filtres documents (fix issue #27)
         has_fiche = True if self.has_fiche_var.get() == 1 else None
@@ -712,7 +740,8 @@ class MultiProductSearchDialog:
 
         produits = self.db.search_produits(terme, categorie,
                                            has_fiche_technique=has_fiche,
-                                           has_devis_fournisseur=has_devis)
+                                           has_devis_fournisseur=has_devis,
+                                           marque=marque)
 
         for item in self.cat_tree.get_children():
             self.cat_tree.delete(item)

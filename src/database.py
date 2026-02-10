@@ -115,6 +115,11 @@ class Database:
             cursor.execute("ALTER TABLE produits ADD COLUMN description TEXT")
         except:
             pass
+        # Migration v1.8.0: ajouter colonne marque dans produits
+        try:
+            cursor.execute("ALTER TABLE produits ADD COLUMN marque TEXT")
+        except:
+            pass
 
         # Migration v1.3.0: ajouter colonnes nom_client et type_marche dans chantiers
         try:
@@ -272,6 +277,15 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_categorie ON produits(categorie)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_sous_categorie ON produits(sous_categorie)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_designation ON produits(designation)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_actif ON produits(actif)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_fournisseur ON produits(fournisseur)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_marque ON produits(marque)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_hauteur ON produits(hauteur)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_largeur ON produits(largeur)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_reference ON produits(reference)')
+        # Index composite pour les recherches frequentes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_cat_actif ON produits(categorie, actif)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_produits_search ON produits(actif, categorie, sous_categorie)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_chantiers_resultat ON chantiers(resultat)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_chantiers_type_marche ON chantiers(type_marche)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_prix_marche_chantier ON prix_marche(chantier_id)')
@@ -546,12 +560,14 @@ class Database:
                         sous_categorie: str = "", sous_categorie_2: str = "",
                         sous_categorie_3: str = "",
                         has_fiche_technique: bool = None,
-                        has_devis_fournisseur: bool = None) -> List[Dict]:
+                        has_devis_fournisseur: bool = None,
+                        marque: str = "", fournisseur: str = "",
+                        limit: int = 5000, offset: int = 0) -> List[Dict]:
         """
-        Recherche des produits
+        Recherche des produits (optimise pour gros volumes)
 
         Args:
-            terme: Terme de recherche (dans designation, dimensions, reference)
+            terme: Terme de recherche (dans designation, dimensions, reference, marque)
             categorie: Filtrer par categorie
             actif_only: Ne retourner que les produits actifs
             hauteur: Filtrer par hauteur exacte
@@ -561,6 +577,10 @@ class Database:
             sous_categorie_3: Filtrer par sous-categorie 3
             has_fiche_technique: Filtrer les produits avec fiche technique (True/False/None)
             has_devis_fournisseur: Filtrer les produits avec devis fournisseur (True/False/None)
+            marque: Filtrer par marque
+            fournisseur: Filtrer par fournisseur
+            limit: Nombre maximum de resultats (0 = illimite, defaut 5000)
+            offset: Decalage pour pagination
 
         Returns:
             Liste des produits correspondants
@@ -573,9 +593,9 @@ class Database:
             query += " AND actif = 1"
 
         if terme:
-            query += " AND (designation LIKE ? OR dimensions LIKE ? OR reference LIKE ? OR sous_categorie LIKE ?)"
+            query += " AND (designation LIKE ? OR dimensions LIKE ? OR reference LIKE ? OR sous_categorie LIKE ? OR marque LIKE ?)"
             terme_like = f"%{terme}%"
-            params.extend([terme_like, terme_like, terme_like, terme_like])
+            params.extend([terme_like, terme_like, terme_like, terme_like, terme_like])
 
         if categorie and categorie not in ("Toutes", ""):
             query += " AND categorie = ?"
@@ -612,9 +632,94 @@ class Database:
         elif has_devis_fournisseur is False:
             query += " AND (devis_fournisseur IS NULL OR devis_fournisseur = '')"
 
+        if marque and marque not in ("Toutes", ""):
+            query += " AND marque = ?"
+            params.append(marque)
+
+        if fournisseur and fournisseur not in ("Tous", ""):
+            query += " AND fournisseur = ?"
+            params.append(fournisseur)
+
         query += " ORDER BY categorie, sous_categorie, designation"
+
+        # Pagination pour optimiser les gros volumes
+        if limit > 0:
+            query += f" LIMIT {limit}"
+            if offset > 0:
+                query += f" OFFSET {offset}"
+
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+    def count_search_results(self, terme: str = "", categorie: str = "", actif_only: bool = True,
+                             hauteur: int = None, largeur: int = None,
+                             sous_categorie: str = "", sous_categorie_2: str = "",
+                             sous_categorie_3: str = "",
+                             has_fiche_technique: bool = None,
+                             has_devis_fournisseur: bool = None,
+                             marque: str = "", fournisseur: str = "") -> int:
+        """
+        Compte le nombre de produits correspondant aux criteres (sans les charger)
+
+        Returns:
+            Nombre total de produits correspondants
+        """
+        cursor = self.conn.cursor()
+        query = "SELECT COUNT(*) as cnt FROM produits WHERE 1=1"
+        params = []
+
+        if actif_only:
+            query += " AND actif = 1"
+
+        if terme:
+            query += " AND (designation LIKE ? OR dimensions LIKE ? OR reference LIKE ? OR sous_categorie LIKE ? OR marque LIKE ?)"
+            terme_like = f"%{terme}%"
+            params.extend([terme_like, terme_like, terme_like, terme_like, terme_like])
+
+        if categorie and categorie not in ("Toutes", ""):
+            query += " AND categorie = ?"
+            params.append(categorie)
+
+        if sous_categorie and sous_categorie not in ("Toutes", ""):
+            query += " AND sous_categorie = ?"
+            params.append(sous_categorie)
+
+        if sous_categorie_2 and sous_categorie_2 not in ("Toutes", ""):
+            query += " AND sous_categorie_2 = ?"
+            params.append(sous_categorie_2)
+
+        if sous_categorie_3 and sous_categorie_3 not in ("Toutes", ""):
+            query += " AND sous_categorie_3 = ?"
+            params.append(sous_categorie_3)
+
+        if hauteur:
+            query += " AND hauteur = ?"
+            params.append(hauteur)
+
+        if largeur:
+            query += " AND largeur = ?"
+            params.append(largeur)
+
+        if has_fiche_technique is True:
+            query += " AND fiche_technique IS NOT NULL AND fiche_technique != ''"
+        elif has_fiche_technique is False:
+            query += " AND (fiche_technique IS NULL OR fiche_technique = '')"
+
+        if has_devis_fournisseur is True:
+            query += " AND devis_fournisseur IS NOT NULL AND devis_fournisseur != ''"
+        elif has_devis_fournisseur is False:
+            query += " AND (devis_fournisseur IS NULL OR devis_fournisseur = '')"
+
+        if marque and marque not in ("Toutes", ""):
+            query += " AND marque = ?"
+            params.append(marque)
+
+        if fournisseur and fournisseur not in ("Tous", ""):
+            query += " AND fournisseur = ?"
+            params.append(fournisseur)
+
+        cursor.execute(query, params)
+        return cursor.fetchone()['cnt']
 
     def get_sous_categories(self, categorie: str = None) -> List[str]:
         """Recupere les sous-categories distinctes"""
@@ -701,6 +806,15 @@ class Database:
         cursor.execute(query)
         return [row['fournisseur'] for row in cursor.fetchall()]
 
+    def get_marques_distinctes(self) -> List[str]:
+        """Recupere les marques distinctes"""
+        cursor = self.conn.cursor()
+        query = """SELECT DISTINCT marque FROM produits
+                   WHERE actif=1 AND marque IS NOT NULL AND marque != ''
+                   ORDER BY marque"""
+        cursor.execute(query)
+        return [row['marque'] for row in cursor.fetchall()]
+
     def get_produit(self, id: int) -> Optional[Dict]:
         """Recupere un produit par son ID"""
         cursor = self.conn.cursor()
@@ -753,9 +867,9 @@ class Database:
         devis_fournisseur = self.make_fiche_path_relative(data.get('devis_fournisseur', ''))
         cursor.execute('''
             INSERT INTO produits (categorie, sous_categorie, sous_categorie_2, sous_categorie_3, designation, description, dimensions,
-                                 hauteur, largeur, prix_achat, reference, fournisseur, chantier, notes,
+                                 hauteur, largeur, prix_achat, reference, fournisseur, marque, chantier, notes,
                                  fiche_technique, devis_fournisseur)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('categorie', ''),
             data.get('sous_categorie', ''),
@@ -769,6 +883,7 @@ class Database:
             data.get('prix_achat', 0),
             data.get('reference', ''),
             data.get('fournisseur', ''),
+            data.get('marque', ''),
             data.get('chantier', ''),
             data.get('notes', ''),
             fiche_tech,
@@ -800,7 +915,7 @@ class Database:
         cursor.execute('''
             UPDATE produits SET
                 categorie=?, sous_categorie=?, sous_categorie_2=?, sous_categorie_3=?, designation=?, description=?, dimensions=?,
-                hauteur=?, largeur=?, prix_achat=?, reference=?, fournisseur=?, chantier=?, notes=?,
+                hauteur=?, largeur=?, prix_achat=?, reference=?, fournisseur=?, marque=?, chantier=?, notes=?,
                 fiche_technique=?, devis_fournisseur=?, date_modification=CURRENT_TIMESTAMP
             WHERE id=?
         ''', (
@@ -816,6 +931,7 @@ class Database:
             data.get('prix_achat', 0),
             data.get('reference', ''),
             data.get('fournisseur', ''),
+            data.get('marque', ''),
             data.get('chantier', ''),
             data.get('notes', ''),
             fiche_tech,
@@ -909,25 +1025,26 @@ class Database:
             # En-tetes (meme format que l'export)
             headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
                       'DESIGNATION', 'DESCRIPTION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
-                      'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
+                      'FOURNISSEUR', 'MARQUE', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
             writer.writerow(headers)
 
             # Exemple de lignes (chemins relatifs au dossier data)
             examples = [
-                ['STANDARD', 'Porte interieure', '', '', 'Porte pleine 83x204', 'Porte interieure pleine en bois massif, finition laquee blanc', '2040', '830', '125.50', 'REF001', 'Dispano', 'Projet A', 'Fiches_techniques\\porte_standard.pdf', 'Devis_fournisseur\\devis_001.pdf'],
-                ['COUPE-FEU', 'EI30', 'Bloc-porte', '', 'Bloc-porte CF 1/2h', 'Bloc-porte coupe-feu EI30, ame pleine, huisserie metal', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Projet B', 'Fiches_techniques\\Portes_et_chassis\\EI30\\fiche.pdf', ''],
-                ['ACOUSTIQUE', 'RA 35dB', '', '', 'Porte acoustique isolee', 'Porte acoustique haute performance, affaiblissement 35dB', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Projet C', '', 'Devis_fournisseur\\devis_002.pdf'],
+                ['STANDARD', 'Porte interieure', '', '', 'Porte pleine 83x204', 'Porte interieure pleine en bois massif, finition laquee blanc', '2040', '830', '125.50', 'REF001', 'Dispano', 'Jeld-Wen', 'Projet A', 'Fiches_techniques\\porte_standard.pdf', 'Devis_fournisseur\\devis_001.pdf'],
+                ['COUPE-FEU', 'EI30', 'Bloc-porte', '', 'Bloc-porte CF 1/2h', 'Bloc-porte coupe-feu EI30, ame pleine, huisserie metal', '2040', '930', '350.00', 'CF30-001', 'Dispano', 'Malerba', 'Projet B', 'Fiches_techniques\\Portes_et_chassis\\EI30\\fiche.pdf', ''],
+                ['ACOUSTIQUE', 'RA 35dB', '', '', 'Porte acoustique isolee', 'Porte acoustique haute performance, affaiblissement 35dB', '2040', '830', '280.00', 'ACO-35', 'Dispano', 'Righini', 'Projet C', '', 'Devis_fournisseur\\devis_002.pdf'],
             ]
             for example in examples:
                 writer.writerow(example)
 
-    def import_csv(self, filepath: str, mapping: Dict = None) -> int:
+    def import_csv(self, filepath: str, mapping: Dict = None, progress_callback=None) -> int:
         """
-        Importe des produits depuis un fichier CSV
+        Importe des produits depuis un fichier CSV (version optimisee pour gros volumes)
 
         Args:
             filepath: Chemin du fichier CSV
             mapping: Mapping des colonnes (optionnel)
+            progress_callback: Fonction callback(current, total) pour la progression (optionnel)
 
         Returns:
             Nombre de produits importes
@@ -946,19 +1063,23 @@ class Database:
                 'PRIX_UNITAIRE_HT': 'prix_achat',
                 'ARTICLE': 'reference',
                 'FOURNISSEUR': 'fournisseur',
+                'MARQUE': 'marque',
                 'CHANTIER': 'chantier',
                 'FICHE_TECHNIQUE': 'fiche_technique',
                 'FICHIER_PDF': 'devis_fournisseur'
             }
 
         count = 0
+        categories_to_add = set()  # Collecter les categories pour ajout en batch
+        batch_size = 1000  # Nombre de lignes par batch (optimise)
+        callback_frequency = 500  # Frequence d'appel du callback (moins = plus rapide)
+
         # Detecter l'encodage : utf-8-sig (avec BOM), utf-8, ou cp1252
-        encoding = 'utf-8-sig'  # Detecte et supprime le BOM UTF-8 automatiquement
+        encoding = 'utf-8-sig'
         try:
             with open(filepath, 'r', encoding='utf-8-sig') as test_f:
-                test_f.read(2048)  # Tester la lecture
+                test_f.read(2048)
         except UnicodeDecodeError:
-            # Fallback vers cp1252 si erreur
             encoding = 'cp1252'
 
         with open(filepath, 'r', encoding=encoding) as f:
@@ -967,35 +1088,122 @@ class Database:
             f.seek(0)
             delimiter = ';' if ';' in sample else ','
 
-            reader = csv.DictReader(f, delimiter=delimiter)
-            for row in reader:
-                data = {}
-                for csv_col, db_col in mapping.items():
-                    if csv_col in row:
-                        value = row[csv_col]
-                        if db_col == 'prix_achat':
-                            try:
-                                value = float(value.replace(',', '.')) if value and value not in ['divers', '-', ''] else 0
-                            except:
-                                value = 0
-                        elif db_col in ('hauteur', 'largeur'):
-                            try:
-                                value = int(value) if value and value.strip().isdigit() else None
-                            except:
-                                value = None
-                        data[db_col] = value
+            # Compter le nombre total de lignes pour la progression
+            total_lines = sum(1 for _ in f) - 1
+            f.seek(0)
 
-                # Parser dimensions si hauteur/largeur non definis
-                if not data.get('hauteur') and not data.get('largeur') and data.get('dimensions'):
-                    h, l = self._parse_dimensions(data['dimensions'])
-                    if h:
-                        data['hauteur'] = h
-                    if l:
-                        data['largeur'] = l
+            cursor = self.conn.cursor()
 
-                if data.get('designation'):
-                    self.add_produit(data)
-                    count += 1
+            # Optimisations SQLite pour import massif
+            cursor.execute("PRAGMA synchronous = OFF")
+            cursor.execute("PRAGMA journal_mode = MEMORY")
+            cursor.execute("PRAGMA cache_size = 10000")
+
+            try:
+                reader = csv.DictReader(f, delimiter=delimiter)
+                current_line = 0
+                batch_data = []
+
+                for row in reader:
+                    current_line += 1
+                    data = {}
+                    for csv_col, db_col in mapping.items():
+                        if csv_col in row:
+                            value = row[csv_col]
+                            if db_col == 'prix_achat':
+                                try:
+                                    value = float(value.replace(',', '.')) if value and value not in ['divers', '-', ''] else 0
+                                except:
+                                    value = 0
+                            elif db_col in ('hauteur', 'largeur'):
+                                try:
+                                    value = int(value) if value and value.strip().isdigit() else None
+                                except:
+                                    value = None
+                            data[db_col] = value
+
+                    # Parser dimensions si hauteur/largeur non definis
+                    if not data.get('hauteur') and not data.get('largeur') and data.get('dimensions'):
+                        h, l = self._parse_dimensions(data['dimensions'])
+                        if h:
+                            data['hauteur'] = h
+                        if l:
+                            data['largeur'] = l
+
+                    if data.get('designation'):
+                        # Preparer les donnees pour insertion batch
+                        fiche_tech = self.make_fiche_path_relative(data.get('fiche_technique', ''))
+                        devis_fournisseur = self.make_fiche_path_relative(data.get('devis_fournisseur', ''))
+
+                        batch_data.append((
+                            data.get('categorie', ''),
+                            data.get('sous_categorie', ''),
+                            data.get('sous_categorie_2', ''),
+                            data.get('sous_categorie_3', ''),
+                            data.get('designation', ''),
+                            data.get('description', ''),
+                            data.get('dimensions', ''),
+                            data.get('hauteur'),
+                            data.get('largeur'),
+                            data.get('prix_achat', 0),
+                            data.get('reference', ''),
+                            data.get('fournisseur', ''),
+                            data.get('marque', ''),
+                            data.get('chantier', ''),
+                            data.get('notes', ''),
+                            fiche_tech,
+                            devis_fournisseur
+                        ))
+
+                        # Collecter la categorie
+                        if data.get('categorie'):
+                            categories_to_add.add(data['categorie'])
+
+                        count += 1
+
+                    # Inserer par batch pour optimiser
+                    if len(batch_data) >= batch_size:
+                        cursor.executemany('''
+                            INSERT INTO produits (categorie, sous_categorie, sous_categorie_2, sous_categorie_3,
+                                                 designation, description, dimensions, hauteur, largeur, prix_achat,
+                                                 reference, fournisseur, marque, chantier, notes,
+                                                 fiche_technique, devis_fournisseur)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', batch_data)
+                        batch_data = []
+
+                    # Appeler le callback de progression (moins frequemment)
+                    if progress_callback and current_line % callback_frequency == 0:
+                        progress_callback(current_line, total_lines)
+
+                # Inserer les donnees restantes
+                if batch_data:
+                    cursor.executemany('''
+                        INSERT INTO produits (categorie, sous_categorie, sous_categorie_2, sous_categorie_3,
+                                             designation, description, dimensions, hauteur, largeur, prix_achat,
+                                             reference, fournisseur, marque, chantier, notes,
+                                             fiche_technique, devis_fournisseur)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', batch_data)
+
+                # Ajouter toutes les categories en une fois
+                for cat in categories_to_add:
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO categories (nom, description, couleur)
+                        VALUES (?, ?, ?)
+                    ''', (cat, None, '#1F4E79'))
+
+                # Commit final unique
+                self.conn.commit()
+
+                # Callback final
+                if progress_callback:
+                    progress_callback(total_lines, total_lines)
+
+            finally:
+                # Restaurer les parametres SQLite normaux
+                cursor.execute("PRAGMA synchronous = NORMAL")
+                cursor.execute("PRAGMA journal_mode = DELETE")
 
         return count
 
@@ -1051,7 +1259,7 @@ class Database:
             # En-tetes compatibles avec import (memes noms que dans le mapping)
             headers = ['CATEGORIE', 'SOUS-CATEGORIE', 'SOUS-CATEGORIE 2', 'SOUS-CATEGORIE 3',
                       'DESIGNATION', 'HAUTEUR', 'LARGEUR', 'PRIX_UNITAIRE_HT', 'ARTICLE',
-                      'FOURNISSEUR', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
+                      'FOURNISSEUR', 'MARQUE', 'CHANTIER', 'FICHE_TECHNIQUE', 'FICHIER_PDF']
             if include_prix_vente:
                 headers.insert(8, 'PRIX_VENTE_HT')
 
@@ -1075,6 +1283,7 @@ class Database:
                     row.append(f"{prix_vente:.2f}")
                 row.extend([
                     p['fournisseur'] or '',
+                    p.get('marque', '') or '',
                     p['chantier'] or '',
                     p.get('fiche_technique', '') or '',
                     p.get('devis_fournisseur', '') or ''

@@ -29,7 +29,7 @@ from ui.cart_export_dialog import CartExportDialog
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import Database
 from ui.theme import Theme
-from ui.dialogs import ProductDialog, SettingsDialog, AboutDialog, CategoryDialog
+from ui.dialogs import ProductDialog, SettingsDialog, AboutDialog, CategoryDialog, ProgressDialog
 from ui.marches_analyse_view import MarchesAnalyseView
 from ui.dpgf_import_dialog import DPGFImportDialog
 from utils import get_resource_path
@@ -51,6 +51,7 @@ class MainWindow:
         self.hauteur_var = tk.StringVar(value="Toutes")
         self.largeur_var = tk.StringVar(value="Toutes")
         self.fournisseur_var = tk.StringVar(value="Tous")
+        self.marque_var = tk.StringVar(value="Toutes")
         self.has_fiche_var = tk.IntVar(value=0)
         self.has_devis_var = tk.IntVar(value=0)
         self.marge_var = tk.StringVar(value=str(self.db.get_marge()))
@@ -453,7 +454,7 @@ class MainWindow:
 
         # Filtre fournisseur
         fournisseur_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
-        fournisseur_frame.pack(side=tk.LEFT, padx=(0, 24))
+        fournisseur_frame.pack(side=tk.LEFT, padx=(0, 16))
 
         tk.Label(fournisseur_frame, text="Fournisseur",
                 font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
@@ -464,6 +465,20 @@ class MainWindow:
                                               font=Theme.FONTS['body'])
         self.fournisseur_combo.pack(pady=(2, 0))
         self.fournisseur_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
+
+        # Filtre marque
+        marque_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
+        marque_frame.pack(side=tk.LEFT, padx=(0, 24))
+
+        tk.Label(marque_frame, text="Marque",
+                font=Theme.FONTS['tiny'], bg=Theme.COLORS['bg_alt'],
+                fg=Theme.COLORS['text_muted']).pack(anchor='w')
+
+        self.marque_combo = ttk.Combobox(marque_frame, textvariable=self.marque_var,
+                                         width=14, state='readonly',
+                                         font=Theme.FONTS['body'])
+        self.marque_combo.pack(pady=(2, 0))
+        self.marque_combo.bind('<<ComboboxSelected>>', lambda e: self.on_search())
 
         # Filtres documents (fix issue #27)
         docs_frame = tk.Frame(filter_row, bg=Theme.COLORS['bg_alt'])
@@ -516,7 +531,7 @@ class MainWindow:
         # Colonnes du tableau
         columns = ('id', 'categorie', 'sous_categorie', 'sous_categorie_2', 'sous_categorie_3',
                   'designation', 'hauteur', 'largeur', 'prix_achat', 'prix_vente', 'reference',
-                  'fournisseur', 'pdf', 'devis', 'cart')
+                  'fournisseur', 'marque', 'pdf', 'devis', 'cart')
 
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings',
                                 selectmode='browse')
@@ -535,6 +550,7 @@ class MainWindow:
             'prix_vente': ('Vente HT', 80, 'e'),
             'reference': ('Ref.', 70, 'center'),
             'fournisseur': ('Fournisseur', 100, 'w'),
+            'marque': ('Marque', 100, 'w'),
             'pdf': ('Fiche', 50, 'center'),
             'devis': ('Devis', 50, 'center'),
             'cart': ('Devis', 50, 'center'),
@@ -651,10 +667,11 @@ class MainWindow:
         # Mettre a jour les sous-categories (avec preservation des selections)
         self.update_subcategories(preserve_selection=True)
 
-        # Mettre a jour les hauteurs, largeurs et fournisseurs
+        # Mettre a jour les hauteurs, largeurs, fournisseurs et marques
         self.update_hauteurs()
         self.update_largeurs()
         self.update_fournisseurs()
+        self.update_marques()
 
         # Mettre a jour la marge
         self.marge_var.set(str(self.db.get_marge()))
@@ -774,13 +791,19 @@ class MainWindow:
         self.fournisseur_combo['values'] = ['Tous'] + fournisseurs
         self.fournisseur_var.set('Tous')
 
+    def update_marques(self):
+        """Met a jour la liste des marques disponibles"""
+        marques = self.db.get_marques_distinctes()
+        self.marque_combo['values'] = ['Toutes'] + marques
+        self.marque_var.set('Toutes')
+
     def on_hauteur_change(self, event=None):
         """Callback quand la hauteur change"""
         self.update_largeurs()
         self.on_search()
 
     def on_search(self, *args):
-        """Execute la recherche"""
+        """Execute la recherche (optimisee pour gros volumes)"""
         terme = self.search_var.get()
         categorie = self.category_var.get()
         subcategorie = self.subcategory_var.get()
@@ -788,6 +811,8 @@ class MainWindow:
         subcategorie3 = self.subcategory3_var.get()
         hauteur_str = self.hauteur_var.get()
         largeur_str = self.largeur_var.get()
+        fournisseur = self.fournisseur_var.get()
+        marque = self.marque_var.get()
 
         # Convertir hauteur/largeur
         hauteur = int(hauteur_str) if hauteur_str and hauteur_str != "Toutes" else None
@@ -797,27 +822,26 @@ class MainWindow:
         has_fiche = True if self.has_fiche_var.get() == 1 else None
         has_devis = True if self.has_devis_var.get() == 1 else None
 
-        # Recherche de base avec filtres
-        produits = self.db.search_produits(terme, categorie, hauteur=hauteur, largeur=largeur,
-                                           has_fiche_technique=has_fiche,
-                                           has_devis_fournisseur=has_devis)
+        # Limite d'affichage pour les performances
+        display_limit = 500
 
-        # Filtre par sous-categorie niveau 1
-        if subcategorie and subcategorie != "Toutes":
-            produits = [p for p in produits if p['sous_categorie'] == subcategorie]
+        # Recherche optimisee : tous les filtres passes a la DB
+        produits = self.db.search_produits(
+            terme, categorie,
+            hauteur=hauteur, largeur=largeur,
+            sous_categorie=subcategorie if subcategorie != "Toutes" else "",
+            sous_categorie_2=subcategorie2 if subcategorie2 != "Toutes" else "",
+            sous_categorie_3=subcategorie3 if subcategorie3 != "Toutes" else "",
+            has_fiche_technique=has_fiche,
+            has_devis_fournisseur=has_devis,
+            marque=marque if marque != "Toutes" else "",
+            fournisseur=fournisseur if fournisseur != "Tous" else "",
+            limit=display_limit
+        )
 
-        # Filtre par sous-categorie niveau 2
-        if subcategorie2 and subcategorie2 != "Toutes":
-            produits = [p for p in produits if p.get('sous_categorie_2') == subcategorie2]
-
-        # Filtre par sous-categorie niveau 3
-        if subcategorie3 and subcategorie3 != "Toutes":
-            produits = [p for p in produits if p.get('sous_categorie_3') == subcategorie3]
-
-        # Filtre par fournisseur
-        fournisseur = self.fournisseur_var.get()
-        if fournisseur and fournisseur != "Tous":
-            produits = [p for p in produits if p.get('fournisseur') == fournisseur]
+        # Compter le total pour affichage (si limite atteinte)
+        total_count = len(produits)
+        is_truncated = len(produits) >= display_limit
 
         try:
             valeur_marge = self.marge_var.get().replace(',', '.').replace('%', '').strip()
@@ -860,14 +884,18 @@ class MainWindow:
                 f"{prix_vente:.2f} EUR",
                 p['reference'] or '-',
                 p.get('fournisseur') or '-',
+                p.get('marque') or '-',
                 '',  # Colonne pdf : vide, icone affichee via overlay
                 '',  # Colonne devis : vide, icone affichee via overlay
                 ''   # Colonne cart : vide, icone affichee via overlay
             ), tags=tuple(tags))
 
-        # Mise a jour compteur
+        # Mise a jour compteur (avec indication si tronque)
         count = len(produits)
-        self.count_label.config(text=f"{count} produit{'s' if count != 1 else ''}")
+        if is_truncated:
+            self.count_label.config(text=f"{count}+ produits (limite atteinte)")
+        else:
+            self.count_label.config(text=f"{count} produit{'s' if count != 1 else ''}")
 
         # Forcer la mise à jour du Treeview
         self.tree.update_idletasks()
@@ -885,12 +913,14 @@ class MainWindow:
         self.hauteur_var.set("Toutes")
         self.largeur_var.set("Toutes")
         self.fournisseur_var.set("Tous")
+        self.marque_var.set("Toutes")
         self.has_fiche_var.set(0)
         self.has_devis_var.set(0)
         self.update_subcategories()
         self.update_hauteurs()
         self.update_largeurs()
         self.update_fournisseurs()
+        self.update_marques()
 
     def on_apply_marge(self):
         """Applique la nouvelle marge"""
@@ -964,12 +994,39 @@ class MainWindow:
             filetypes=[("Fichiers CSV", "*.csv"), ("Tous", "*.*")]
         )
         if filepath:
+            # Creer le dialogue de progression
+            progress = ProgressDialog(self.root, title="Import en cours",
+                                       message="Import des produits...")
+
+            import time
+            start_time = time.time()
+
+            def update_progress(current, total):
+                if progress.is_cancelled():
+                    raise InterruptedError("Import annule par l'utilisateur")
+                elapsed = time.time() - start_time
+                if current > 0 and elapsed > 0.5:
+                    speed = current / elapsed
+                    remaining = (total - current) / speed if speed > 0 else 0
+                    if remaining > 1:
+                        progress.update_progress(current, total, f"Import... {current:,}/{total:,} (~{remaining:.0f}s restant)")
+                    else:
+                        progress.update_progress(current, total, f"Import... {current:,}/{total:,}")
+                else:
+                    progress.update_progress(current, total, f"Import... {current:,}/{total:,}")
+
             try:
                 self.set_status("Import en cours...")
-                count = self.db.import_csv(filepath)
+                count = self.db.import_csv(filepath, progress_callback=update_progress)
+                progress.close()
                 self.refresh_data()
                 messagebox.showinfo("Import termine", f"{count} produit(s) importe(s)")
+            except InterruptedError:
+                progress.close()
+                self.refresh_data()
+                messagebox.showinfo("Import annule", "L'import a ete annule par l'utilisateur")
             except Exception as e:
+                progress.close()
                 messagebox.showerror("Erreur", f"Erreur d'import:\n{e}")
 
     def on_download_template(self):
