@@ -1,10 +1,27 @@
 # DestriChiffrage
 
-**Version 1.8.0**
+**Version 1.8.3**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Gestion automatique des fichiers PDF (v1.8.3)
+- **Issue #30** : Copie automatique des PDF avec structure par categories
+  - Lors de la selection d'une fiche technique ou devis fournisseur, l'utilisateur peut choisir de copier le fichier dans le dossier de la categorie
+  - Structure automatique : `data/Fiches_techniques/{categorie}/{sous_categorie}/...`
+  - Idem pour `data/Devis_fournisseur/`
+  - Gestion des doublons : renommage automatique si fichier existant
+  - Renommage synchronise des dossiers lors du renommage d'une categorie
+  - Mise a jour automatique des chemins en base de donnees
+  - Nettoyage des caracteres speciaux dans les noms de dossiers
+
+### Correction affichage barre d'actions (v1.8.2)
+- **Fix issue #29** : La barre d'actions en bas de la fenetre principale reste toujours visible
+  - Modification de l'ordre de packing dans `_create_main_content()`
+  - La barre d'actions est packee en premier avec `side=tk.BOTTOM`
+  - Les boutons "Nouveau produit", "Modifier", "Supprimer", etc. sont toujours accessibles
+  - Fonctionne correctement meme avec une fenetre de petite taille
 
 ### Ajout du champ Marque (v1.8.0)
 - **Issue #28** : Ajout du champ "Marque" pour les produits

@@ -74,8 +74,11 @@ class MainWindow:
         self._create_menu()
         self._create_header()
         self._create_toolbar()
-        self._create_main_content()
+        # IMPORTANT: Creer status_bar et action_bar AVANT main_content
+        # avec side=BOTTOM pour qu'elles restent toujours visibles (fix issue #29)
         self._create_status_bar()
+        self._create_action_bar()
+        self._create_main_content()
 
         # Charger les donnees
         self.refresh_data()
@@ -514,11 +517,56 @@ class MainWindow:
                                        style='ghost', padx=12, pady=4)
         clear_btn.pack()
 
+    def _create_action_bar(self):
+        """Cree la barre d'actions en bas (fix issue #29)"""
+        # IMPORTANT: Packee sur self.root avec side=BOTTOM pour rester toujours visible
+        action_bar = tk.Frame(self.root, bg=Theme.COLORS['bg'], height=56)
+        action_bar.pack(side=tk.BOTTOM, fill=tk.X, padx=16, pady=(0, 8))
+        action_bar.pack_propagate(False)  # Garder la hauteur fixe
+
+        # Boutons gauche
+        left_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
+        left_btns.pack(side=tk.LEFT)
+
+        # Bouton Nouveau - Action principale en Or Destribois
+        add_btn = Theme.create_button(left_btns, "+ Nouveau produit", command=self.on_add,
+                                     style='secondary')
+        add_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        # Bouton Modifier - Style discret
+        edit_btn = Theme.create_button(left_btns, "Modifier", command=self.on_edit,
+                                      style='ghost', padx=16)
+        edit_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        # Bouton Supprimer - Ghost avec texte rouge discret
+        del_btn = Theme.create_button(left_btns, "Supprimer", command=self.on_delete,
+                                     style='danger-ghost', padx=16)
+        del_btn.pack(side=tk.LEFT)
+
+        # Boutons droite
+        right_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
+        right_btns.pack(side=tk.RIGHT)
+
+        # Bouton Panier
+        self.cart_btn = Theme.create_button(right_btns, "\U0001F4CB Devis rapide (0)",
+                                           command=self._show_cart_panel, style='secondary', padx=16)
+        self.cart_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        # Bouton Categories
+        cat_btn = Theme.create_button(right_btns, "Categories", command=self.on_manage_categories,
+                                     style='ghost', padx=16)
+        cat_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        # Bouton Importer
+        import_btn = Theme.create_button(right_btns, "Importer", command=self.on_import,
+                                        style='ghost', padx=16)
+        import_btn.pack(side=tk.LEFT, padx=(0, 8))
+
     def _create_main_content(self):
-        """Cree le contenu principal avec tableau et actions"""
+        """Cree le contenu principal avec tableau"""
         # Container principal
         main_container = tk.Frame(self.root, bg=Theme.COLORS['bg'])
-        main_container.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=16, pady=(16, 8))
 
         # Card pour le tableau
         table_card = tk.Frame(main_container, bg=Theme.COLORS['bg_alt'])
@@ -590,48 +638,6 @@ class MainWindow:
 
         # Menu contextuel
         self._create_context_menu()
-
-        # Barre d'actions en bas
-        action_bar = tk.Frame(main_container, bg=Theme.COLORS['bg'], height=56)
-        action_bar.pack(fill=tk.X, pady=(12, 0))
-
-        # Boutons gauche
-        left_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
-        left_btns.pack(side=tk.LEFT)
-
-        # Bouton Nouveau - Action principale en Or Destribois
-        add_btn = Theme.create_button(left_btns, "+ Nouveau produit", command=self.on_add,
-                                     style='secondary')
-        add_btn.pack(side=tk.LEFT, padx=(0, 8))
-
-        # Bouton Modifier - Style discret
-        edit_btn = Theme.create_button(left_btns, "Modifier", command=self.on_edit,
-                                      style='ghost', padx=16)
-        edit_btn.pack(side=tk.LEFT, padx=(0, 8))
-
-        # Bouton Supprimer - Ghost avec texte rouge discret
-        del_btn = Theme.create_button(left_btns, "Supprimer", command=self.on_delete,
-                                     style='danger-ghost', padx=16)
-        del_btn.pack(side=tk.LEFT)
-
-        # Boutons droite
-        right_btns = tk.Frame(action_bar, bg=Theme.COLORS['bg'])
-        right_btns.pack(side=tk.RIGHT)
-
-        # Bouton Panier
-        self.cart_btn = Theme.create_button(right_btns, "\U0001F4CB Devis rapide (0)",
-                                           command=self._show_cart_panel, style='secondary', padx=16)
-        self.cart_btn.pack(side=tk.LEFT, padx=(0, 8))
-
-        # Bouton Categories
-        cat_btn = Theme.create_button(right_btns, "Categories", command=self.on_manage_categories,
-                                     style='ghost', padx=16)
-        cat_btn.pack(side=tk.LEFT, padx=(0, 8))
-
-        # Bouton Importer
-        import_btn = Theme.create_button(right_btns, "Importer", command=self.on_import,
-                                        style='ghost', padx=16)
-        import_btn.pack(side=tk.LEFT, padx=(0, 8))
 
     def _create_status_bar(self):
         """Cree la barre de statut minimaliste"""

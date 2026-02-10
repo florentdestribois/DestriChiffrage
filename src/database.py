@@ -838,6 +838,194 @@ class Database:
         # Sinon, le resoudre par rapport au dossier data
         return os.path.normpath(os.path.join(self.data_dir, path))
 
+    def sanitize_folder_name(self, name: str) -> str:
+        """
+        Nettoie un nom pour l'utiliser comme nom de dossier
+        Remplace les caracteres interdits par des underscores
+        """
+        if not name:
+            return ''
+        # Caracteres interdits dans les noms de fichiers/dossiers Windows
+        forbidden_chars = '/\\:*?"<>|'
+        result = name
+        for char in forbidden_chars:
+            result = result.replace(char, '_')
+        return result.strip()
+
+    def get_pdf_category_path(self, pdf_type: str, categorie: str, sous_categorie: str = '',
+                               sous_categorie_2: str = '', sous_categorie_3: str = '') -> str:
+        """
+        Construit le chemin du dossier pour un PDF selon la hierarchie de categories
+
+        Args:
+            pdf_type: 'Fiches_techniques' ou 'Devis_fournisseur'
+            categorie: Categorie principale
+            sous_categorie: Sous-categorie niveau 1 (optionnel)
+            sous_categorie_2: Sous-categorie niveau 2 (optionnel)
+            sous_categorie_3: Sous-categorie niveau 3 (optionnel)
+
+        Returns:
+            Chemin absolu du dossier
+        """
+        path_parts = [self.data_dir, pdf_type]
+
+        if categorie:
+            path_parts.append(self.sanitize_folder_name(categorie))
+        if sous_categorie:
+            path_parts.append(self.sanitize_folder_name(sous_categorie))
+        if sous_categorie_2:
+            path_parts.append(self.sanitize_folder_name(sous_categorie_2))
+        if sous_categorie_3:
+            path_parts.append(self.sanitize_folder_name(sous_categorie_3))
+
+        return os.path.normpath(os.path.join(*path_parts))
+
+    def copy_pdf_to_category_folder(self, source_path: str, pdf_type: str,
+                                     categorie: str, sous_categorie: str = '',
+                                     sous_categorie_2: str = '', sous_categorie_3: str = '') -> str:
+        """
+        Copie un fichier PDF dans le dossier de categorie approprie
+
+        Args:
+            source_path: Chemin du fichier source
+            pdf_type: 'Fiches_techniques' ou 'Devis_fournisseur'
+            categorie: Categorie principale
+            sous_categorie: Sous-categorie niveau 1 (optionnel)
+            sous_categorie_2: Sous-categorie niveau 2 (optionnel)
+            sous_categorie_3: Sous-categorie niveau 3 (optionnel)
+
+        Returns:
+            Chemin relatif du fichier copie (pour stockage en base)
+        """
+        if not source_path or not os.path.exists(source_path):
+            return ''
+
+        # Construire le chemin de destination
+        dest_folder = self.get_pdf_category_path(pdf_type, categorie, sous_categorie,
+                                                  sous_categorie_2, sous_categorie_3)
+
+        # Creer le dossier si necessaire
+        os.makedirs(dest_folder, exist_ok=True)
+
+        # Nom du fichier
+        filename = os.path.basename(source_path)
+        dest_path = os.path.join(dest_folder, filename)
+
+        # Gestion des doublons : ajouter un suffixe si le fichier existe
+        if os.path.exists(dest_path):
+            # Verifier si c'est le meme fichier (meme taille)
+            if os.path.getsize(source_path) == os.path.getsize(dest_path):
+                # Meme fichier, retourner le chemin existant
+                return self.make_fiche_path_relative(dest_path)
+
+            # Fichier different, ajouter un suffixe
+            base, ext = os.path.splitext(filename)
+            counter = 1
+            while os.path.exists(dest_path):
+                new_filename = f"{base}_{counter}{ext}"
+                dest_path = os.path.join(dest_folder, new_filename)
+                counter += 1
+
+        # Copier le fichier
+        shutil.copy2(source_path, dest_path)
+
+        # Retourner le chemin relatif
+        return self.make_fiche_path_relative(dest_path)
+
+    def rename_category_folders(self, old_name: str, new_name: str) -> int:
+        """
+        Renomme les dossiers de categorie dans Fiches_techniques et Devis_fournisseur
+
+        Args:
+            old_name: Ancien nom de la categorie
+            new_name: Nouveau nom de la categorie
+
+        Returns:
+            Nombre de dossiers renommes
+        """
+        if old_name == new_name:
+            return 0
+
+        old_sanitized = self.sanitize_folder_name(old_name)
+        new_sanitized = self.sanitize_folder_name(new_name)
+
+        renamed_count = 0
+
+        for pdf_type in ['Fiches_techniques', 'Devis_fournisseur']:
+            old_path = os.path.join(self.data_dir, pdf_type, old_sanitized)
+            new_path = os.path.join(self.data_dir, pdf_type, new_sanitized)
+
+            if os.path.exists(old_path) and os.path.isdir(old_path):
+                try:
+                    # Verifier que la destination n'existe pas
+                    if os.path.exists(new_path):
+                        # Fusionner les dossiers
+                        for item in os.listdir(old_path):
+                            src_item = os.path.join(old_path, item)
+                            dst_item = os.path.join(new_path, item)
+                            if os.path.isdir(src_item):
+                                if os.path.exists(dst_item):
+                                    # Fusionner recursivement
+                                    for sub_item in os.listdir(src_item):
+                                        shutil.move(os.path.join(src_item, sub_item),
+                                                   os.path.join(dst_item, sub_item))
+                                    os.rmdir(src_item)
+                                else:
+                                    shutil.move(src_item, dst_item)
+                            else:
+                                if not os.path.exists(dst_item):
+                                    shutil.move(src_item, dst_item)
+                        # Supprimer l'ancien dossier s'il est vide
+                        if not os.listdir(old_path):
+                            os.rmdir(old_path)
+                    else:
+                        os.rename(old_path, new_path)
+                    renamed_count += 1
+                except Exception as e:
+                    print(f"Erreur lors du renommage du dossier {old_path}: {e}")
+
+        return renamed_count
+
+    def update_pdf_paths_for_category(self, old_category: str, new_category: str):
+        """
+        Met a jour les chemins PDF en base de donnees apres renommage d'une categorie
+
+        Args:
+            old_category: Ancien nom de la categorie
+            new_category: Nouveau nom de la categorie
+        """
+        if old_category == new_category:
+            return
+
+        old_sanitized = self.sanitize_folder_name(old_category)
+        new_sanitized = self.sanitize_folder_name(new_category)
+
+        cursor = self.conn.cursor()
+
+        # Recuperer tous les produits de cette categorie avec des chemins PDF
+        cursor.execute('''
+            SELECT id, fiche_technique, devis_fournisseur
+            FROM produits
+            WHERE categorie = ? AND (fiche_technique != '' OR devis_fournisseur != '')
+        ''', (new_category,))
+
+        for row in cursor.fetchall():
+            updates = {}
+
+            for field in ['fiche_technique', 'devis_fournisseur']:
+                path = row[field]
+                if path and old_sanitized in path:
+                    new_path = path.replace(f"/{old_sanitized}/", f"/{new_sanitized}/")
+                    new_path = new_path.replace(f"\\{old_sanitized}\\", f"\\{new_sanitized}\\")
+                    updates[field] = new_path
+
+            if updates:
+                set_clause = ', '.join([f"{k}=?" for k in updates.keys()])
+                values = list(updates.values()) + [row['id']]
+                cursor.execute(f"UPDATE produits SET {set_clause} WHERE id=?", values)
+
+        self.conn.commit()
+
     def make_fiche_path_relative(self, path: str) -> str:
         """Convertit un chemin absolu en chemin relatif au dossier data"""
         if not path:

@@ -246,10 +246,49 @@ class ProductDialog:
     def _browse_file(self, entry_widget):
         """Ouvre un dialogue pour selectionner un fichier PDF"""
         filepath = filedialog.askopenfilename(
-            title="Selectionner une fiche technique",
+            title="Selectionner un fichier PDF",
             filetypes=[("Fichiers PDF", "*.pdf"), ("Tous les fichiers", "*.*")]
         )
         if filepath:
+            # Determiner le type de PDF (fiche_technique ou devis_fournisseur)
+            pdf_type = None
+            for field, widget in self.entries.items():
+                if widget is entry_widget:
+                    pdf_type = 'Fiches_techniques' if field == 'fiche_technique' else 'Devis_fournisseur'
+                    break
+
+            # Recuperer la categorie actuelle
+            categorie = self.entries['categorie'].get() if 'categorie' in self.entries else ''
+            sous_categorie = self.entries['sous_categorie'].get() if 'sous_categorie' in self.entries else ''
+            sous_categorie_2 = self.entries['sous_categorie_2'].get() if 'sous_categorie_2' in self.entries else ''
+            sous_categorie_3 = self.entries['sous_categorie_3'].get() if 'sous_categorie_3' in self.entries else ''
+
+            if pdf_type and categorie:
+                # Proposer de copier le fichier dans le dossier de la categorie
+                response = messagebox.askyesnocancel(
+                    "Copier le fichier",
+                    f"Voulez-vous copier ce fichier dans le dossier de la categorie '{categorie}'?\n\n"
+                    f"- Oui: Copier dans data/{pdf_type}/{categorie}/...\n"
+                    f"- Non: Garder le chemin original\n"
+                    f"- Annuler: Ne pas selectionner ce fichier"
+                )
+
+                if response is None:  # Annuler
+                    return
+                elif response:  # Oui - Copier
+                    try:
+                        new_path = self.db.copy_pdf_to_category_folder(
+                            filepath, pdf_type, categorie,
+                            sous_categorie, sous_categorie_2, sous_categorie_3
+                        )
+                        if new_path:
+                            filepath = self.db.resolve_fiche_path(new_path)
+                            messagebox.showinfo("Fichier copie",
+                                f"Le fichier a ete copie dans:\n{filepath}")
+                    except Exception as e:
+                        messagebox.showerror("Erreur", f"Erreur lors de la copie:\n{e}")
+                        return
+
             entry_widget.delete(0, tk.END)
             entry_widget.insert(0, filepath)
 
@@ -605,8 +644,29 @@ class EditCategoryDialog:
             messagebox.showerror("Erreur", "Le nom est obligatoire")
             return
 
+        # Si le nom change, renommer aussi les dossiers de fichiers
+        if self.old_nom != new_nom:
+            try:
+                # Renommer les dossiers Fiches_techniques et Devis_fournisseur
+                renamed = self.db.rename_category_folders(self.old_nom, new_nom)
+                if renamed > 0:
+                    # Mettre a jour les chemins en base apres le renommage de la categorie
+                    # Note: on fait cela apres update_categorie car les produits auront la nouvelle categorie
+                    pass
+            except Exception as e:
+                messagebox.showwarning("Attention",
+                    f"Les dossiers n'ont pas pu etre renommes:\n{e}\n\n"
+                    f"La categorie sera quand meme mise a jour.")
+
         # Mettre a jour la categorie (met aussi a jour les produits si le nom change)
         self.db.update_categorie(self.old_nom, new_nom, new_desc)
+
+        # Mettre a jour les chemins PDF apres le renommage
+        if self.old_nom != new_nom:
+            try:
+                self.db.update_pdf_paths_for_category(self.old_nom, new_nom)
+            except Exception as e:
+                print(f"Erreur mise a jour chemins PDF: {e}")
 
         self.callback()
         self.dialog.destroy()

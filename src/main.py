@@ -33,7 +33,7 @@ def main():
     window_width = min(1700, screen_width - 50)
     window_height = min(1700, screen_height - 80)
     root.geometry(f"{window_width}x{window_height}")
-    root.minsize(1700, 1700)
+    root.minsize(1100, 700)
 
     # Icone (si disponible)
     icon_path = get_resource_path('assets/icon.ico')
