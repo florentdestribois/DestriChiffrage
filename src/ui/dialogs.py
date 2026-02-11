@@ -820,7 +820,10 @@ class SettingsDialog:
 
         data_entry = tk.Entry(data_frame, width=18, font=Theme.FONTS['body'],
                              bg=Theme.COLORS['bg'], fg=Theme.COLORS['text'], bd=1, relief='solid')
-        data_entry.insert(0, self.db.get_parametre('data_dir', ''))
+        # Lire data_dir depuis config (settings.ini) et non depuis la BDD
+        from config import get_config
+        config_instance = get_config()
+        data_entry.insert(0, config_instance.get_data_dir())
         data_entry.pack(side=tk.LEFT)
 
         browse_btn = tk.Button(data_frame, text="...", font=Theme.FONTS['small'],
