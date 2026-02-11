@@ -32,6 +32,7 @@ from ui.theme import Theme
 from ui.dialogs import ProductDialog, SettingsDialog, AboutDialog, CategoryDialog, ProgressDialog
 from ui.marches_analyse_view import MarchesAnalyseView
 from ui.dpgf_import_dialog import DPGFImportDialog
+from ui.cao_view import CAOView
 from utils import get_resource_path
 
 
@@ -189,6 +190,11 @@ class MainWindow:
         marches_menu.add_separator()
         marches_menu.add_command(label="Telecharger modele DPGF...", command=self.on_download_dpgf_template)
 
+        # Menu CAO
+        cao_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="CAO", menu=cao_menu)
+        cao_menu.add_command(label="Import/Export SWOOD...", command=self.on_cao_view, accelerator="Ctrl+Shift+S")
+
         # Menu Affichage
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Affichage", menu=view_menu)
@@ -209,6 +215,7 @@ class MainWindow:
         self.root.bind('<Control-m>', lambda e: self.on_edit())
         self.root.bind('<Control-g>', lambda e: self.on_manage_categories())
         self.root.bind('<Control-Shift-N>', lambda e: self.on_new_chantier())
+        self.root.bind('<Control-Shift-S>', lambda e: self.on_cao_view())
         self.root.bind('<Delete>', lambda e: self.on_delete())
         self.root.bind('<F5>', lambda e: self.refresh_data())
 
@@ -293,6 +300,28 @@ class MainWindow:
         vente_menu.add_command(label="Analyse des ventes", command=self.on_marches_analyse)
         vente_menu.add_command(label="Nouveau chantier", command=self.on_new_chantier)
         self.vente_menubutton.config(menu=vente_menu)
+
+        # Bouton menu deroulant "CAO" - Style identique a Vente
+        self.cao_menubutton = tk.Menubutton(center_frame,
+                                            text="CAO \u25BC",
+                                            font=('Segoe UI', 11, 'bold'),
+                                            bg=Theme.COLORS['primary_light'],
+                                            fg=Theme.COLORS['white'],
+                                            activebackground=Theme.COLORS['accent'],
+                                            activeforeground=Theme.COLORS['white'],
+                                            bd=0, padx=20, pady=10, cursor='hand2',
+                                            relief='flat')
+        self.cao_menubutton.pack(side=tk.LEFT, padx=(8, 0))
+
+        # Menu deroulant CAO
+        cao_menu = tk.Menu(self.cao_menubutton, tearoff=0,
+                          bg=Theme.COLORS['bg_alt'],
+                          fg=Theme.COLORS['text'],
+                          activebackground=Theme.COLORS['secondary'],
+                          activeforeground=Theme.COLORS['white'],
+                          font=('Segoe UI', 10))
+        cao_menu.add_command(label="Import materiaux", command=self.on_cao_view)
+        self.cao_menubutton.config(menu=cao_menu)
 
         # Label Marge
         tk.Label(right_frame, text="Marge",
@@ -1259,6 +1288,14 @@ Prix max: {stats['prix_max']:.2f} EUR
         if dialog.result and dialog.chantier_id:
             # Ouvrir directement la vue de chiffrage
             DPGFChiffrageView(self.root, self.db, dialog.chantier_id)
+
+    # ==================== MODULE CAO ====================
+
+    def on_cao_view(self):
+        """Ouvre la vue CAO - Import/Export SolidWorks & SWOOD"""
+        CAOView(self.root, self.db)
+
+    # ==================== AUTRES FONCTIONS ====================
 
     def on_download_dpgf_template(self):
         """Telecharge un modele DPGF vierge"""

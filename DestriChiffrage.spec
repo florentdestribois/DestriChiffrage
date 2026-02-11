@@ -3,10 +3,10 @@
 
 a = Analysis(
     ['src\\main.py'],
-    pathex=[],
+    pathex=['Plug-in/Export optiplanning'],
     binaries=[],
-    datas=[('assets', 'assets'), ('data', 'data')],
-    hiddenimports=[],
+    datas=[('assets', 'assets'), ('data', 'data'), ('Plug-in/Export optiplanning', 'Plug-in/Export optiplanning')],
+    hiddenimports=['export_optiplanning', 'openpyxl'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

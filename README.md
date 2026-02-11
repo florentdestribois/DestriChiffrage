@@ -1,10 +1,24 @@
 # DestriChiffrage
 
-**Version 1.8.3**
+**Version 1.9.0**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Section CAO - Integration SolidWorks & SWOOD (v1.9.0)
+- **Issue #31** : Nouvelle section CAO pour l'integration avec SolidWorks et SWOOD
+  - Menu CAO accessible via le menu principal (Ctrl+Shift+S)
+  - Onglet "Export SWOOD" : exports vers Optiplanning et SWOOD
+    - Export TXT Optiplanning (8 colonnes tab-delimited)
+    - Export XML Plaques Nesting (Boards pour SWOOD Nesting)
+    - Export XML Materiaux SWOOD (49 colonnes completes)
+    - Export XML Chants (EdgeBands pour SWOOD)
+  - Onglet "Import Materiaux" : fonctionnalite a venir (Phase 2)
+    - Synchronisation future avec catalogue.db
+    - Liaison entre produits CAO et base de donnees
+  - Integration du plug-in DestriImport dans l'ecosysteme
+  - Interface coherente avec le theme Destribois
 
 ### Gestion automatique des fichiers PDF (v1.8.3)
 - **Issue #30** : Copie automatique des PDF avec structure par categories
