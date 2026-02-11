@@ -2,7 +2,7 @@
 DestriChiffrage - Version Information
 """
 
-__version__ = "1.9.2"
+__version__ = "1.9.3"
 __app_name__ = "DestriChiffrage"
 __author__ = "Destribois"
 __description__ = "Application de chiffrage et approvisionnement professionnel"

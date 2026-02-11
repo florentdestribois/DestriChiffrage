@@ -43,11 +43,24 @@ class Config:
 
     def __init__(self):
         """Initialise la configuration"""
-        # Fichier de configuration dans le dossier de l'application
+        # Fichier de configuration
         if getattr(sys, 'frozen', False):
-            # Mode PyInstaller : config à côté de l'exécutable
-            base_dir = os.path.dirname(sys.executable)
-            self.config_dir = os.path.join(base_dir, "config")
+            # Mode PyInstaller : utiliser %APPDATA% pour eviter les problemes de permissions
+            appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+            self.config_dir = os.path.join(appdata, "DestriChiffrage")
+
+            # Migration: si config existe dans l'ancien emplacement, la copier
+            old_config_dir = os.path.join(os.path.dirname(sys.executable), "config")
+            old_config_file = os.path.join(old_config_dir, "settings.ini")
+            new_config_file = os.path.join(self.config_dir, "settings.ini")
+
+            if os.path.exists(old_config_file) and not os.path.exists(new_config_file):
+                try:
+                    os.makedirs(self.config_dir, exist_ok=True)
+                    import shutil
+                    shutil.copy2(old_config_file, new_config_file)
+                except:
+                    pass  # Ignorer les erreurs de migration
         else:
             # Mode développement
             self.config_dir = os.path.join(os.path.dirname(__file__), "..", "config")
@@ -105,8 +118,16 @@ class Config:
 
     def save(self):
         """Sauvegarde la configuration"""
-        with open(self.config_file, 'w', encoding='utf-8') as f:
-            self.parser.write(f)
+        try:
+            os.makedirs(self.config_dir, exist_ok=True)
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                self.parser.write(f)
+        except PermissionError as e:
+            print(f"Erreur de permission lors de la sauvegarde de la config: {e}")
+            raise
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de la config: {e}")
+            raise
 
     def get_db_path(self) -> str:
         """Retourne le chemin de la base de données dans le data_dir actuel"""
