@@ -37,6 +37,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Installer output (too large for GitHub)
+installer_output/*.exe
+
 # Screenshots et captures
 Capture*.png
 *.jpg

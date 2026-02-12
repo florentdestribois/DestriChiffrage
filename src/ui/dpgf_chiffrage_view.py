@@ -477,6 +477,8 @@ class DPGFChiffrageView:
                                               command=self._copy_produit_info)
         self.produit_context_menu.add_command(label="Copier la description",
                                               command=self._copy_produit_description)
+        self.produit_context_menu.add_command(label="Copier la reference",
+                                              command=self._copy_produit_reference)
         self.produit_context_menu.add_separator()
         self.produit_context_menu.add_command(label="Ouvrir la fiche technique",
                                               command=self._open_fiche_technique)
@@ -488,6 +490,12 @@ class DPGFChiffrageView:
 
         # Lier le clic droit au menu contextuel
         self.produits_tree.bind('<Button-3>', self._show_produit_context_menu)
+
+        # Double-clic sur colonne Qte pour editer directement
+        self.produits_tree.bind('<Double-1>', self._on_produit_double_click)
+
+        # Variable pour l'edition inline
+        self.qty_edit_entry = None
 
         # Bouton supprimer produit
         Theme.create_button(self.detail_content, "Retirer le produit selectionne",
@@ -933,7 +941,7 @@ class DPGFChiffrageView:
             self.produits_tree.insert('', tk.END, values=(
                 p['id'],  # ID de la liaison
                 p['produit_designation'][:30],
-                p['quantite'],
+                int(p['quantite']),  # Afficher en entier
                 f"{p['prix_unitaire']:.2f}",
             ))
 
@@ -1309,6 +1317,90 @@ class DPGFChiffrageView:
         self._update_couts_display()
         self._load_articles()
 
+    def _on_produit_double_click(self, event):
+        """Gere le double-clic pour editer la quantite directement"""
+        # Identifier la colonne cliquee
+        region = self.produits_tree.identify_region(event.x, event.y)
+        if region != 'cell':
+            return
+
+        column = self.produits_tree.identify_column(event.x)
+        item = self.produits_tree.identify_row(event.y)
+
+        if not item:
+            return
+
+        # Colonne #3 = qte (indices: #1=id, #2=designation, #3=qte, #4=prix)
+        if column == '#3':
+            self._edit_quantity_inline(item, event)
+
+    def _edit_quantity_inline(self, item, event):
+        """Affiche un champ de saisie inline pour la quantite"""
+        # Supprimer l'ancien champ si present
+        if self.qty_edit_entry:
+            self.qty_edit_entry.destroy()
+
+        # Recuperer les coordonnees de la cellule
+        bbox = self.produits_tree.bbox(item, column='qte')
+        if not bbox:
+            return
+
+        x, y, width, height = bbox
+        current_qty = self.produits_tree.item(item)['values'][2]
+
+        # Creer le champ de saisie
+        self.qty_edit_entry = tk.Entry(self.produits_tree, width=5,
+                                       font=Theme.FONTS['body'],
+                                       justify='center',
+                                       bd=1, relief='solid')
+        self.qty_edit_entry.place(x=x, y=y, width=width, height=height)
+        self.qty_edit_entry.insert(0, str(int(float(current_qty))))
+        self.qty_edit_entry.select_range(0, tk.END)
+        self.qty_edit_entry.focus()
+
+        # Stocker l'item en cours d'edition
+        self.qty_edit_item = item
+
+        # Bindings pour valider ou annuler
+        self.qty_edit_entry.bind('<Return>', self._save_quantity_inline)
+        self.qty_edit_entry.bind('<Escape>', self._cancel_quantity_inline)
+        self.qty_edit_entry.bind('<FocusOut>', self._save_quantity_inline)
+
+    def _save_quantity_inline(self, event=None):
+        """Sauvegarde la quantite editee"""
+        if not self.qty_edit_entry:
+            return
+
+        try:
+            new_qty = int(self.qty_edit_entry.get())
+            if new_qty < 1:
+                new_qty = 1
+        except ValueError:
+            self._cancel_quantity_inline()
+            return
+
+        # Recuperer l'ID de liaison
+        item = self.qty_edit_item
+        liaison_id = self.produits_tree.item(item)['values'][0]
+
+        # Mettre a jour en base
+        self.db.update_produit_article(liaison_id, new_qty)
+
+        # Supprimer le champ de saisie
+        self.qty_edit_entry.destroy()
+        self.qty_edit_entry = None
+
+        # Rafraichir l'affichage
+        self._load_produits_lies()
+        self._update_couts_display()
+        self._load_articles()
+
+    def _cancel_quantity_inline(self, event=None):
+        """Annule l'edition de la quantite"""
+        if self.qty_edit_entry:
+            self.qty_edit_entry.destroy()
+            self.qty_edit_entry = None
+
     def _update_mo(self):
         """Met a jour les temps de main d'oeuvre"""
         if not self.current_article_id:
@@ -1471,9 +1563,10 @@ class DPGFChiffrageView:
                 has_fiche = produit and produit.get('fiche_technique')
                 has_devis = produit and produit.get('devis_fournisseur')
 
-                # Mettre a jour l'etat des commandes (indices: 0=copier info, 1=copier desc, 2=sep, 3=fiche, 4=devis)
-                self.produit_context_menu.entryconfig(3, state='normal' if has_fiche else 'disabled')
-                self.produit_context_menu.entryconfig(4, state='normal' if has_devis else 'disabled')
+                # Mettre a jour l'etat des commandes
+                # Indices: 0=copier info, 1=copier desc, 2=copier ref, 3=sep, 4=fiche, 5=devis
+                self.produit_context_menu.entryconfig(4, state='normal' if has_fiche else 'disabled')
+                self.produit_context_menu.entryconfig(5, state='normal' if has_devis else 'disabled')
 
             # Afficher le menu
             self.produit_context_menu.tk_popup(event.x_root, event.y_root)
@@ -1498,50 +1591,65 @@ class DPGFChiffrageView:
         """Copie les informations du produit dans le presse-papier"""
         liaison_info, produit = self._get_selected_produit_info()
         if not produit:
-            messagebox.showwarning("Attention", "Aucun produit selectionne")
             return
 
-        # Construire le texte a copier
+        # Construire le texte a copier avec toutes les informations
         info_lines = [
             f"Designation: {produit.get('designation', '-')}",
             f"Reference: {produit.get('reference', '-')}",
             f"Categorie: {produit.get('categorie', '-')}",
+            f"Sous-categorie: {produit.get('sous_categorie', '-')}",
+            f"Sous-categorie 2: {produit.get('sous_categorie_2', '-')}",
+            f"Sous-categorie 3: {produit.get('sous_categorie_3', '-')}",
+            f"Marque: {produit.get('marque', '-')}",
             f"Fournisseur: {produit.get('fournisseur', '-')}",
+            f"Dimensions: {produit.get('hauteur', '-')} x {produit.get('largeur', '-')} mm",
             f"Prix achat: {produit.get('prix_achat', 0):.2f} EUR",
         ]
+        if produit.get('notes'):
+            info_lines.append(f"Notes: {produit.get('notes', '')}")
         if liaison_info:
             info_lines.append(f"Quantite: {liaison_info['quantite']}")
             info_lines.append(f"Sous-total: {liaison_info['quantite'] * liaison_info['prix_unitaire']:.2f} EUR")
 
         info_text = "\n".join(info_lines)
 
-        # Copier dans le presse-papier
+        # Copier dans le presse-papier (sans confirmation)
         self.window.clipboard_clear()
         self.window.clipboard_append(info_text)
         self.window.update()
-
-        messagebox.showinfo("Copie", "Informations copiees dans le presse-papier")
 
     def _copy_produit_description(self):
         """Copie la description du produit dans le presse-papier"""
         liaison_info, produit = self._get_selected_produit_info()
         if not produit:
-            messagebox.showwarning("Attention", "Aucun produit selectionne")
             return
 
         # Recuperer la description du produit
         description = produit.get('description', '') or produit.get('designation', '')
-
         if not description:
-            messagebox.showwarning("Attention", "Ce produit n'a pas de description")
             return
 
-        # Copier dans le presse-papier
+        # Copier dans le presse-papier (sans confirmation)
         self.window.clipboard_clear()
         self.window.clipboard_append(description)
         self.window.update()
 
-        messagebox.showinfo("Copie", "Description copiee dans le presse-papier")
+    def _copy_produit_reference(self):
+        """Copie la reference du produit dans le presse-papier"""
+        liaison_info, produit = self._get_selected_produit_info()
+        if not produit:
+            return
+
+        # Recuperer la reference du produit
+        reference = produit.get('reference', '')
+        if not reference:
+            return
+
+        # Copier dans le presse-papier (sans confirmation)
+        self.window.clipboard_clear()
+        self.window.clipboard_append(reference)
+        self.window.update()
 
     def _open_fiche_technique(self):
         """Ouvre la fiche technique du produit"""

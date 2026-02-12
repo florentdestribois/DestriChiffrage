@@ -31,16 +31,18 @@ class ProductSearchDialog:
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
-        # Ouvrir sur toute la hauteur de l'ecran
+        # Ouvrir sur toute la hauteur de l'ecran avec largeur maximale de 2000px
         self.dialog.update_idletasks()
+        screen_width = self.dialog.winfo_screenwidth()
         screen_height = self.dialog.winfo_screenheight()
         window_height = screen_height - 80  # Marge pour la barre des taches
-        self.dialog.geometry(f"1000x{window_height}")
-        self.dialog.minsize(950, 700)
+        window_width = min(1800, screen_width - 100)  # Max 1800px ou ecran - 100
+        self.dialog.geometry(f"{window_width}x{window_height}")
+        self.dialog.minsize(1200, 700)
 
         # Centrer horizontalement, en haut de l'ecran
-        x = parent.winfo_x() + (parent.winfo_width() - 1000) // 2
-        self.dialog.geometry(f"1000x{window_height}+{x}+10")
+        x = (screen_width - window_width) // 2
+        self.dialog.geometry(f"{window_width}x{window_height}+{x}+10")
 
         # Variables
         self.search_var = tk.StringVar()
@@ -102,7 +104,7 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.category_combo = ttk.Combobox(search_frame, textvariable=self.category_var,
-                                          width=14, state='readonly',
+                                          width=30, state='readonly',
                                           font=Theme.FONTS['body'])
         cats = ['Toutes'] + self.db.get_categories_names()
         self.category_combo['values'] = cats
@@ -121,7 +123,7 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.subcategory_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory_var,
-                                             width=14, state='readonly',
+                                             width=30, state='readonly',
                                              font=Theme.FONTS['body'])
         self.subcategory_combo['values'] = ['Toutes']
         self.subcategory_combo.pack(side=tk.LEFT, padx=(8, 16))
@@ -134,7 +136,7 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.subcategory2_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory2_var,
-                                              width=14, state='readonly',
+                                              width=30, state='readonly',
                                               font=Theme.FONTS['body'])
         self.subcategory2_combo['values'] = ['Toutes']
         self.subcategory2_combo.pack(side=tk.LEFT, padx=(8, 16))
@@ -147,7 +149,7 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.subcategory3_combo = ttk.Combobox(search_frame2, textvariable=self.subcategory3_var,
-                                              width=14, state='readonly',
+                                              width=30, state='readonly',
                                               font=Theme.FONTS['body'])
         self.subcategory3_combo['values'] = ['Toutes']
         self.subcategory3_combo.pack(side=tk.LEFT, padx=(8, 16))
@@ -160,7 +162,7 @@ class ProductSearchDialog:
                 fg=Theme.COLORS['text_muted']).pack(side=tk.LEFT)
 
         self.marque_combo = ttk.Combobox(search_frame2, textvariable=self.marque_var,
-                                         width=12, state='readonly',
+                                         width=25, state='readonly',
                                          font=Theme.FONTS['body'])
         marques = ['Toutes'] + self.db.get_marques_distinctes()
         self.marque_combo['values'] = marques
@@ -524,17 +526,23 @@ class MultiProductSearchDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Ajouter des produits")
-        self.dialog.geometry("1000x700")
-        self.dialog.minsize(950, 650)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.COLORS['bg'])
 
-        # Centrer
+        # Ouvrir avec largeur adaptee a l'ecran
         self.dialog.update_idletasks()
-        x = parent.winfo_x() + (parent.winfo_width() - 1000) // 2
-        y = parent.winfo_y() + (parent.winfo_height() - 700) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        screen_width = self.dialog.winfo_screenwidth()
+        screen_height = self.dialog.winfo_screenheight()
+        window_width = min(1600, screen_width - 100)
+        window_height = min(800, screen_height - 100)
+        self.dialog.geometry(f"{window_width}x{window_height}")
+        self.dialog.minsize(1200, 650)
+
+        # Centrer
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.dialog.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
         # Variables
         self.search_var = tk.StringVar()
@@ -587,7 +595,7 @@ class MultiProductSearchDialog:
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         self.category_combo = ttk.Combobox(search_frame, textvariable=self.category_var,
-                                          width=15, state='readonly',
+                                          width=30, state='readonly',
                                           font=Theme.FONTS['body'])
         cats = ['Toutes'] + self.db.get_categories_names()
         self.category_combo['values'] = cats
@@ -596,7 +604,7 @@ class MultiProductSearchDialog:
 
         # Filtre marque
         self.marque_combo = ttk.Combobox(search_frame, textvariable=self.marque_var,
-                                         width=12, state='readonly',
+                                         width=25, state='readonly',
                                          font=Theme.FONTS['body'])
         marques = ['Toutes'] + self.db.get_marques_distinctes()
         self.marque_combo['values'] = marques

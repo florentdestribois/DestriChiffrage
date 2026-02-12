@@ -1,10 +1,29 @@
 # DestriChiffrage
 
-**Version 1.9.0**
+**Version 1.9.7**
 
 Application de chiffrage et approvisionnement professionnel avec module Marches Publics.
 
 ## Fonctionnalites
+
+### Ergonomie produits lies amelioree (v1.9.6)
+- **Edition quantite directe** : Double-clic sur la colonne "Qte" pour saisir directement la quantite (entier)
+- **Copier reference** : Nouvelle option "Copier la reference" dans le menu contextuel
+- **Pas de confirmation** : Les operations copier/coller ne montrent plus de popup de confirmation
+
+### Amelioration UI DPGF et recherche produit (v1.9.5)
+- **Issue #32** : Ameliorations d'interface utilisateur pour le module DPGF et la recherche produit
+  - **Copier/coller ameliore** : Les informations copiees incluent maintenant toutes les donnees du produit (sous-categories, marque, dimensions, notes)
+  - **Edition quantite directe** : Possibilite de modifier la quantite des produits lies directement via clic droit > "Modifier la quantite"
+  - **Menus deroulants elargis** : Largeur des combobox categorie/sous-categories passee de 14 a 30 caracteres pour une meilleure lisibilite
+  - **Fenetre de recherche agrandie** : Largeur maximale de 1800px (adapte a l'ecran) au lieu de 1000px
+
+### Mise a jour du plug-in Export Optiplanning v1.1 (v1.9.4)
+- **Corrections XML SWOOD** : Fermeture correcte des balises `</Layers>` et `</Properties>`
+- **Correction noms Nesting** : Suppression du doublon "19 mm" dans les noms de materiaux melamines
+- **Resolution formules Excel** : Support des formules comme `=AT5`, `=A5` dans les champs Description et SawReference
+- **Amelioration SawReference** : Le calcul SawReference est maintenant identique au champ Name pour coherence dans le Nesting
+- **Affichage version** : Le numero de version v1.1 est maintenant visible dans l'interface du plug-in
 
 ### Section CAO - Integration SolidWorks & SWOOD (v1.9.0)
 - **Issue #31** : Nouvelle section CAO pour l'integration avec SolidWorks et SWOOD
@@ -437,6 +456,8 @@ Toutes les fenetres Toplevel disposent d'une taille minimale (`minsize`) pour ga
 | Dialogues moyens (export, parametres) | 550x450 | 530x430 |
 | Dialogues complexes (produit, fournisseur) | 680x860 | 660x840 |
 | Vues principales (chiffrage, analyse) | 1200x700 | 1100x650 |
+| Recherche produit (v1.9.5) | 1800x(ecran-80) | 1200x700 |
+| Multi-produits (v1.9.5) | 1600x800 | 1200x650 |
 
 ## Licence
 
